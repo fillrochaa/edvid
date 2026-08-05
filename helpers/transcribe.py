@@ -1,4 +1,4 @@
-"""Transcribe a video with Groq Whisper or ElevenLabs Scribe.
+"""Transcribe a video with OpenAI Whisper or ElevenLabs Scribe.
 
 Extracts mono 16kHz audio via ffmpeg, uploads it to a speech-to-text
 endpoint with word-level timestamps, and writes the result — normalized to
@@ -6,27 +6,27 @@ the ElevenLabs Scribe schema the rest of this skill consumes — to
 <edit_dir>/transcripts/<video_stem>.json.
 
 Two backends, chosen automatically by source length (backend="auto"):
-  - Groq Whisper (whisper-large-v3) for SHORT sources (<= 5 min). Fast and
-    cheap, but Groq's free tier struggles with big uploads / long files.
+  - OpenAI Whisper (whisper-1) for SHORT sources (<= 5 min). It exposes the
+    word timestamps Edvid needs to avoid cutting inside words.
   - ElevenLabs Scribe (scribe_v1) for LONG sources (> 5 min) — e.g. YouTube
     videos and course lessons — when an ELEVENLABS_API_KEY is present. It
     handles long audio in a single request and returns the Scribe schema
     natively. If no ElevenLabs key is configured, long sources fall back to
-    Groq (with chunking) so nothing breaks.
-Pass backend="groq" or backend="elevenlabs" to force one regardless of length.
+    OpenAI (with chunking) so nothing breaks.
+Pass backend="openai" or backend="elevenlabs" to force one regardless of length.
 
 Audio is uploaded as constant-bitrate mono 16kHz 64kbps MP3 (~0.5 MB/min),
 so file size is predictable from duration. When the file exceeds the
 provider's upload cap it is split by BYTES into evenly-sized chunks that are
-guaranteed to fit (24 MB target under Groq's 25 MB limit — the failure mode
+guaranteed to fit (24 MB target — the failure mode
 of the old time-based FLAC chunking, where a dense 600s slice could blow the
 cap and 413 the whole job, is gone by construction). Word timestamps are
 offset and stitched back into a single continuous transcript.
 
-Notes vs. the original ElevenLabs Scribe backend:
-  - Groq Whisper does NOT diarize, so every word gets speaker_id
+Notes vs. the ElevenLabs Scribe backend:
+  - OpenAI Whisper does NOT diarize, so every word gets speaker_id
     "speaker_0". The --num-speakers flag is accepted but ignored.
-  - Groq Whisper does NOT tag audio events.
+  - OpenAI Whisper does NOT tag audio events.
   - 'spacing' entries are reconstructed from inter-word gaps so silence
     detection (pack_transcripts / timeline_view) keeps working.
 
@@ -36,7 +36,7 @@ Usage:
     python helpers/transcribe.py <video_path>
     python helpers/transcribe.py <video_path> --edit-dir /custom/edit
     python helpers/transcribe.py <video_path> --language en
-    python helpers/transcribe.py <video_path> --model whisper-large-v3-turbo
+    python helpers/transcribe.py <video_path> --model whisper-1
 """
 
 from __future__ import annotations
@@ -56,20 +56,21 @@ from pathlib import Path
 import requests
 
 
-GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
-DEFAULT_MODEL = "whisper-large-v3"
+OPENAI_URL = "https://api.openai.com/v1/audio/transcriptions"
+# Edvid requires word-level timestamps. OpenAI's gpt-4o-transcribe models only
+# support JSON output, while whisper-1 supports verbose_json + word timestamps.
+DEFAULT_MODEL = "whisper-1"
 
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 ELEVENLABS_MODEL = "scribe_v1"
 
 # Sources longer than this (seconds) transcribe via ElevenLabs Scribe when a
-# key is available — Groq's free tier struggles with long/large uploads.
+# key is available — Scribe handles long uploads in one request.
 # 5 min = the practical line between short clips and lectures/YouTube.
 LONG_SOURCE_SECONDS = 300
 
-# Groq caps uploads at 25 MB (free tier). Target a margin under it so mp3
-# frame boundaries / multipart overhead never push a chunk over. Chunk count
-# is derived from the actual file size, so every chunk fits by construction.
+# Use a conservative 24 MB target for OpenAI uploads. Chunk count is derived
+# from the actual file size, so every chunk fits by construction.
 MAX_UPLOAD_BYTES = 24 * 1024 * 1024
 
 # ElevenLabs Scribe accepts long single uploads, so don't chunk unless the
@@ -78,38 +79,28 @@ ELEVENLABS_CHUNK_SECONDS = 3600
 
 
 def load_api_key() -> str:
-    """Return the Groq API key from .env (repo root or cwd) or environment.
-
-    Accepts GROQ_API_KEY. Falls back to the legacy ELEVENLABS_API_KEY name
-    only if it clearly holds a Groq key (starts with 'gsk_').
-    """
-    wanted = ("GROQ_API_KEY", "ELEVENLABS_API_KEY")
+    """Return the OpenAI API key from .env (repo root or cwd) or environment."""
     for candidate in [Path(__file__).resolve().parent.parent / ".env", Path(".env")]:
         if candidate.exists():
-            found: dict[str, str] = {}
             for line in candidate.read_text().splitlines():
                 line = line.strip()
                 if not line or line.startswith("#") or "=" not in line:
                     continue
                 k, v = line.split("=", 1)
-                k = k.strip()
-                if k in wanted:
-                    found[k] = v.strip().strip('"').strip("'")
-            if found.get("GROQ_API_KEY"):
-                return found["GROQ_API_KEY"]
-            legacy = found.get("ELEVENLABS_API_KEY", "")
-            if legacy.startswith("gsk_"):
-                return legacy
-    v = os.environ.get("GROQ_API_KEY", "")
+                if k.strip() == "OPENAI_API_KEY":
+                    v = v.strip().strip('"').strip("'")
+                    if v:
+                        return v
+    v = os.environ.get("OPENAI_API_KEY", "")
     if not v:
-        sys.exit("GROQ_API_KEY not found in .env or environment")
+        sys.exit("OPENAI_API_KEY not found in .env or environment")
     return v
 
 
 def load_elevenlabs_key() -> str:
     """Return the ElevenLabs API key from .env (repo root or cwd) or env, or ""
     if none is configured. Optional — only long sources use it, and they fall
-    back to Groq when it's absent.
+    back to OpenAI when it's absent.
     """
     for candidate in [Path(__file__).resolve().parent.parent / ".env", Path(".env")]:
         if candidate.exists():
@@ -172,13 +163,19 @@ def _segment_audio(audio_path: Path, out_dir: Path, chunk_seconds: float) -> lis
     return chunks
 
 
-def call_groq(
+def call_openai(
     audio_path: Path,
     api_key: str,
     model: str = DEFAULT_MODEL,
     language: str | None = None,
 ) -> dict:
-    """Call Groq Whisper on one audio file. Returns the raw verbose_json dict."""
+    """Call OpenAI Whisper on one audio file. Returns verbose JSON with words."""
+    if model != "whisper-1":
+        raise ValueError(
+            "Edvid requires OpenAI model 'whisper-1' because its cut pipeline "
+            "depends on verbose_json word timestamps. gpt-4o-transcribe does "
+            "not currently expose word timestamps."
+        )
     data: list[tuple[str, str]] = [
         ("model", model),
         ("response_format", "verbose_json"),
@@ -189,14 +186,14 @@ def call_groq(
     if language:
         data.append(("language", language))
 
-    # Groq occasionally returns transient 5xx/429s mid-job; on a long multi-chunk
+    # OpenAI can return transient 5xx/429s mid-job; on a long multi-chunk
     # transcription a single blip would otherwise abort everything. Retry those
     # with exponential backoff; fail fast on 4xx (bad key / bad request).
     last_err = ""
     for attempt in range(6):
         with open(audio_path, "rb") as f:
             resp = requests.post(
-                GROQ_URL,
+                OPENAI_URL,
                 headers={"Authorization": f"Bearer {api_key}"},
                 files={"file": (audio_path.name, f, "audio/mpeg")},
                 data=data,
@@ -204,7 +201,7 @@ def call_groq(
             )
         if resp.status_code == 200:
             return resp.json()
-        last_err = f"Groq returned {resp.status_code}: {resp.text[:500]}"
+        last_err = f"OpenAI returned {resp.status_code}: {resp.text[:500]}"
         retryable = resp.status_code == 429 or resp.status_code >= 500
         if not retryable or attempt == 5:
             break
@@ -232,7 +229,7 @@ def call_elevenlabs(
     if language:
         data.append(("language_code", language))
 
-    # Same transient-failure posture as Groq: retry 429/5xx, fail fast on 4xx.
+    # Same transient-failure posture as OpenAI: retry 429/5xx, fail fast on 4xx.
     last_err = ""
     for attempt in range(6):
         with open(audio_path, "rb") as f:
@@ -256,13 +253,13 @@ def call_elevenlabs(
     raise RuntimeError(last_err)
 
 
-def _to_scribe_words(groq_words: list[dict], offset: float) -> list[dict]:
-    """Convert Groq word list to Scribe-schema entries, inserting 'spacing'
+def _to_scribe_words(openai_words: list[dict], offset: float) -> list[dict]:
+    """Convert OpenAI word timestamps to Scribe-schema entries, inserting 'spacing'
     entries for inter-word gaps so downstream silence detection works.
     """
     out: list[dict] = []
     prev_end: float | None = None
-    for w in groq_words:
+    for w in openai_words:
         start = w.get("start")
         end = w.get("end")
         if start is None or end is None:
@@ -323,12 +320,12 @@ def _transcribe_audio(
     verbose: bool,
     cache_dir: Path | None = None,
     chunk_seconds: float | None = None,
-    backend: str = "groq",
+    backend: str = "openai",
 ) -> dict:
     """Transcribe one prepared audio file (chunking if large). Returns a
     payload dict in ElevenLabs Scribe shape.
 
-    Chunking is planned by BYTES for Groq: n = ceil(size / MAX_UPLOAD_BYTES)
+    Chunking is planned by BYTES for OpenAI: n = ceil(size / MAX_UPLOAD_BYTES)
     even time slices, so every chunk lands under the 25 MB cap regardless of
     duration (the mp3 is constant-bitrate). chunk_seconds, when given, acts as
     an additional upper bound — drop to ~300 when the provider is shedding
@@ -341,11 +338,11 @@ def _transcribe_audio(
     duration = _probe_duration(audio_path)
     size = audio_path.stat().st_size
 
-    # Effective chunk length: byte-derived guarantee for Groq, plus any
+    # Effective chunk length: byte-derived guarantee for OpenAI, plus any
     # explicit time cap. ElevenLabs takes big uploads, so only the time cap
     # applies there.
     eff_chunk = duration
-    if backend == "groq" and size > MAX_UPLOAD_BYTES and duration > 0:
+    if backend == "openai" and size > MAX_UPLOAD_BYTES and duration > 0:
         eff_chunk = duration / math.ceil(size / MAX_UPLOAD_BYTES)
     if chunk_seconds:
         eff_chunk = min(eff_chunk, chunk_seconds)
@@ -372,7 +369,7 @@ def _transcribe_audio(
             if backend == "elevenlabs":
                 payload = call_elevenlabs(chunk, api_key, language=language)
             else:
-                payload = call_groq(chunk, api_key, model=model, language=language)
+                payload = call_openai(chunk, api_key, model=model, language=language)
             if cache:
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 cache.write_text(json.dumps(payload))
@@ -382,7 +379,7 @@ def _transcribe_audio(
             payloads = [fetch(0, chunks[0])]
         else:
             # 2 workers, not 4: byte-based chunks are big (up to ~50 min of
-            # audio each), and Groq's free tier rate-limits aggressive
+            # audio each), and providers may rate-limit aggressive
             # concurrency — two in flight keeps throughput without tripping 429s.
             with ThreadPoolExecutor(max_workers=min(2, len(chunks))) as ex:
                 payloads = list(ex.map(fetch, range(len(chunks)), chunks))
@@ -401,7 +398,7 @@ def _transcribe_audio(
             detected_lang = payload.get("language") or payload.get("language_code") or ""
 
     backend_tag = (
-        f"elevenlabs/{ELEVENLABS_MODEL}" if backend == "elevenlabs" else f"groq/{model}"
+        f"elevenlabs/{ELEVENLABS_MODEL}" if backend == "elevenlabs" else f"openai/{model}"
     )
     return {
         "language_code": detected_lang,
@@ -427,13 +424,13 @@ def transcribe_one(
     """Transcribe a single video. Returns path to transcript JSON.
 
     Cached: returns existing path immediately if the transcript already exists.
-    num_speakers is accepted for CLI compatibility but ignored (Groq Whisper
+    num_speakers is accepted for CLI compatibility but ignored (OpenAI Whisper
     does not diarize; ElevenLabs Scribe is called with diarize=false here).
 
     backend: "auto" (default) uses ElevenLabs Scribe for sources longer than
-    LONG_SOURCE_SECONDS when an elevenlabs_key is available, else Groq. Pass
-    "groq" or "elevenlabs" to force one. ElevenLabs with no key falls back to
-    Groq so long sources never hard-fail.
+    LONG_SOURCE_SECONDS when an elevenlabs_key is available, else OpenAI. Pass
+    "openai" or "elevenlabs" to force one. ElevenLabs with no key falls back to
+    OpenAI so long sources never hard-fail.
     """
     transcripts_dir = edit_dir / "transcripts"
     transcripts_dir.mkdir(parents=True, exist_ok=True)
@@ -448,9 +445,9 @@ def transcribe_one(
     duration = _probe_duration(video)
     resolved = backend
     if resolved == "auto":
-        resolved = "elevenlabs" if (duration > LONG_SOURCE_SECONDS and elevenlabs_key) else "groq"
+        resolved = "elevenlabs" if (duration > LONG_SOURCE_SECONDS and elevenlabs_key) else "openai"
     elif resolved == "elevenlabs" and not elevenlabs_key:
-        resolved = "groq"
+        resolved = "openai"
 
     if resolved == "elevenlabs":
         active_key = elevenlabs_key or ""
@@ -462,7 +459,7 @@ def transcribe_one(
         active_key = api_key
         active_model = model
         active_chunk = chunk_seconds
-        backend_label = "Groq"
+        backend_label = "OpenAI Whisper"
 
     if verbose:
         mins = duration / 60.0
@@ -500,7 +497,7 @@ def transcribe_one(
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Transcribe a video with Groq Whisper")
+    ap = argparse.ArgumentParser(description="Transcribe a video with OpenAI Whisper")
     ap.add_argument("video", type=Path, help="Path to video file")
     ap.add_argument(
         "--edit-dir",
@@ -518,20 +515,20 @@ def main() -> None:
         "--num-speakers",
         type=int,
         default=None,
-        help="Accepted for compatibility but ignored (Groq Whisper does not diarize).",
+        help="Accepted for compatibility but ignored (OpenAI Whisper does not diarize).",
     )
     ap.add_argument(
         "--model",
         type=str,
         default=DEFAULT_MODEL,
-        help=f"Groq transcription model (default: {DEFAULT_MODEL}).",
+        help=f"OpenAI transcription model (default: {DEFAULT_MODEL}).",
     )
     ap.add_argument(
         "--chunk-seconds",
         type=float,
         default=None,
         help="Optional upper bound on chunk length. By default chunks are sized "
-             "by BYTES so each upload is guaranteed under Groq's 25MB cap; set "
+             "by BYTES so each upload stays under the conservative 24MB target; set "
              "this (e.g. 300) only when the provider is shedding load on big "
              "payloads (5xx on large chunks).",
     )
@@ -539,10 +536,10 @@ def main() -> None:
         "--backend",
         type=str,
         default="auto",
-        choices=["auto", "groq", "elevenlabs"],
+        choices=["auto", "openai", "elevenlabs"],
         help=f"Transcription backend. 'auto' (default) uses ElevenLabs Scribe for "
              f"sources longer than {LONG_SOURCE_SECONDS}s when ELEVENLABS_API_KEY is set, "
-             "else Groq. Force with 'groq' or 'elevenlabs'.",
+             "else OpenAI. Force with 'openai' or 'elevenlabs'.",
     )
     args = ap.parse_args()
 
