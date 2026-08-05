@@ -1,6 +1,6 @@
 """Batch-transcribe every video in a directory with 4 parallel workers.
 
-Walks <videos_dir> for common video extensions, runs Groq Whisper on
+Walks <videos_dir> for common video extensions, runs OpenAI Whisper on
 each, writes transcripts to <videos_dir>/edit/transcripts/<name>.json.
 
 Cached per-file: any source that already has a transcript is skipped.
@@ -60,22 +60,22 @@ def main() -> None:
         "--num-speakers",
         type=int,
         default=None,
-        help="Accepted for compatibility but ignored (Groq Whisper does not diarize).",
+        help="Accepted for compatibility but ignored (OpenAI Whisper does not diarize).",
     )
     ap.add_argument(
         "--model",
         type=str,
         default=DEFAULT_MODEL,
-        help=f"Groq transcription model (default: {DEFAULT_MODEL}).",
+        help=f"OpenAI transcription model (default: {DEFAULT_MODEL}).",
     )
     ap.add_argument(
         "--backend",
         type=str,
         default="auto",
-        choices=["auto", "groq", "elevenlabs"],
+        choices=["auto", "openai", "elevenlabs"],
         help=f"Transcription backend per file. 'auto' (default) uses ElevenLabs Scribe "
              f"for sources longer than {LONG_SOURCE_SECONDS}s when ELEVENLABS_API_KEY is "
-             "set, else Groq. Force with 'groq' or 'elevenlabs'.",
+             "set, else OpenAI. Force with 'openai' or 'elevenlabs'.",
     )
     args = ap.parse_args()
 
