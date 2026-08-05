@@ -52,7 +52,7 @@ are identical and cached — reuse an approved `edl.json`; skip `cut.mp4`/previe
     ├── project.md               ← memory; appended every session
     ├── takes_packed.md          ← phrase-level transcripts, the primary reading view
     ├── edl.json                 ← cut decisions (Phase 1)
-    ├── transcripts/<name>.json  ← cached word-level transcripts (Groq Whisper / ElevenLabs Scribe)
+    ├── transcripts/<name>.json  ← cached word-level transcripts (OpenAI Whisper / ElevenLabs Scribe)
     ├── clips_graded/            ← per-segment extracts with grade + fades
     ├── cut.mp4                  ← PHASE 1 output: clean graded cut (approval artifact)
     ├── verify/                  ← montages / flagged-boundary views
@@ -68,8 +68,8 @@ are identical and cached — reuse an approved `edl.json`; skip `cut.mp4`/previe
 
 First-time install lives in `install.md`. On cold start just verify:
 
-- `GROQ_API_KEY` resolves (env or `.env` at the edvid repo root). Groq Whisper `whisper-large-v3`; no diarization (every word is `speaker_0`).
-- `ELEVENLABS_API_KEY` (optional) — used for LONG sources (>5 min, e.g. YouTube/course lessons) via ElevenLabs Scribe `scribe_v1`, since Groq's free tier chokes on long uploads. `backend=auto` (default) picks Scribe over 5 min when the key exists, else Groq; short clips stay on Groq. No key → long sources fall back to Groq. Ask for it lazily the first time a >5 min source shows up, write to `.env`.
+- `OPENAI_API_KEY` resolves (env or `.env` at the edvid repo root). OpenAI Whisper `whisper-1`; no diarization (every word is `speaker_0`). Edvid deliberately uses `whisper-1`, not `gpt-4o-transcribe`, because its cut pipeline requires word-level timestamps.
+- `ELEVENLABS_API_KEY` (optional) — used for LONG sources (>5 min, e.g. YouTube/course lessons) via ElevenLabs Scribe `scribe_v1`. `backend=auto` (default) picks Scribe over 5 min when the key exists, else OpenAI; short clips stay on OpenAI. No key → long sources fall back to OpenAI. Ask for it lazily the first time a >5 min source shows up, write to `.env`.
 - `ffmpeg` + `ffprobe` on PATH; Python deps (`uv sync`); Node 18+ for Phase 2. `yt-dlp` only for URL sources (`ingest_url.py`) — install lazily (`brew install yt-dlp`) the first time a link shows up.
 - The `remotion-best-practices` skill for Phase-2 domain knowledge (install from https://github.com/remotion-dev/skills if missing).
 - Lazy keys, ask on first use, write to `.env` (never to `<videos_dir>`): `PEXELS_API_KEY` (images), `GOOGLE_API_KEY`+`GOOGLE_CSE_ID` (brand/people images fallback), `TREBLO_API_KEY` (AI music).
@@ -80,8 +80,8 @@ Helpers live in `helpers/`, resolved relative to this SKILL.md (symlinked at `~/
 
 Phase 1:
 - **`ingest_url.py <url> --dest <videos_dir> [--section 12:00-25:30] [--max-height 1080]`** — edit from a link: yt-dlp → MP4 (≤1080p, ascii-safe filename) straight into the videos dir; from there it's a source like any other. `--section` downloads ONLY a time range of a longform source (keyframe-accurate) — the cheap way to clip minutes 12–25 of a 1h video. `--simulate` prints title/duration/resolution without downloading (confirm before big fetches; run those in the background).
-- **`transcribe.py <video> --edit-dir <edit> [--language pt] [--backend auto|groq|elevenlabs]`** — word-level, cached. `backend=auto` (default): ElevenLabs Scribe for sources >5 min (when `ELEVENLABS_API_KEY` set), else Groq Whisper. Audio uploads as CBR 64kbps mono MP3 (~0.5 MB/min); oversized audio auto-chunks **by bytes**, so every chunk is guaranteed under Groq's 25 MB cap regardless of length. Chunks fetch **in parallel** with per-chunk resume cache and 5x backoff retries (provider blips don't restart the job).
-- **`transcribe_batch.py <videos_dir> [--backend auto|groq|elevenlabs]`** — 4-worker parallel transcription for multi-take shoots; same per-file auto backend selection by length.
+- **`transcribe.py <video> --edit-dir <edit> [--language pt] [--backend auto|openai|elevenlabs]`** — word-level, cached. `backend=auto` (default): ElevenLabs Scribe for sources >5 min (when `ELEVENLABS_API_KEY` set), else OpenAI Whisper. Audio uploads as CBR 64kbps mono MP3 (~0.5 MB/min); oversized audio auto-chunks **by bytes** under a conservative 24 MB target. Chunks fetch **in parallel** with per-chunk resume cache and 5x backoff retries (provider blips don't restart the job).
+- **`transcribe_batch.py <videos_dir> [--backend auto|openai|elevenlabs]`** — 4-worker parallel transcription for multi-take shoots; same per-file auto backend selection by length.
 - **`pack_transcripts.py --edit-dir <dir>`** — transcripts → `takes_packed.md` (phrase-level, breaks on ≥0.5s silence). **The** reading view: 1/10 the tokens of raw JSON.
 - **`speech_regions.py <video>`** — acoustic speech intervals via silencedetect. The source of truth for cut EDGES (Whisper times drift/stretch). Answers *where* speech is — never *how loud* it is.
 - **`voice_levels.py <video> [--edit-dir <dir>] [--edl edl.json] [--drop-db 5]`** — the source of truth for speech LEVEL. Learns the noise floor (Ridler-Calvard intermeans, not a percentile) and the speaker's own median from the recording itself, then flags every phrase, sub-phrase run, and EDL range sitting ≥5 dB under that median and sizes a `gain_db` for each. Catches the failure nothing else sees: a whispered aside or a trailing-off sentence where every word is present, the transcript is perfect, `speech_regions` says "speech", `verify_cut` finds no pop and no dead air — and the viewer still hits a passage they cannot hear. **Run it in Phase 1 before writing the EDL.**
@@ -374,7 +374,7 @@ Tune per voice: brighter → raise treble/3.2k; warmer → back those off, lift 
 - Fix: edges from `speech_regions.py` — start → region onset −30ms, end → offset +50–80ms (the trail keeps the word's decay; cutting at the offset clips the last sibilant). Inside merged speech blocks, place the edge by eye on a fine `timeline_view`.
 - If the user flags a gap/clip after render, re-run `speech_regions.py` around that timestamp — don't nudge blindly.
 - **A stretched word can hide a false start, and the stretch also mis-attributes every word around it.** When "de" spans 6.16→8.64, the words the source transcript places on either side may belong to *different takes* — the speaker trailed off, paused, and restarted the whole sentence. The text shows one clean sentence; the audio holds two attempts.
-- **Never conclude a range is missing content from the SOURCE transcript's word times.** Extract the exact range and transcribe it in isolation — no surrounding context for the LM to complete from. If the answer changes a deliverable (a caption rewrite, dropping a take), get a second opinion from the other backend (`--backend elevenlabs` vs `groq`); two models agreeing on an isolated clip is trustworthy, one model reading the full file is not.
+- **Never conclude a range is missing content from the SOURCE transcript's word times.** Extract the exact range and transcribe it in isolation — no surrounding context for the LM to complete from. If the answer changes a deliverable (a caption rewrite, dropping a take), get a second opinion from the other backend (`--backend elevenlabs` vs `openai`); two models agreeing on an isolated clip is trustworthy, one model reading the full file is not.
 - **Rotation:** phone clips are often stored landscape with a ±90° display-matrix; render.py handles it — don't force dimensions.
 
 **Level the takes — presence is not audibility:**
