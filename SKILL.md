@@ -33,14 +33,12 @@ description: Edvid — edit any video by conversation, in phases. Two tracks —
 
 ## Execution medium — ffmpeg pipeline (default) vs Adobe Premiere (MCP)
 
-The default engine is the ffmpeg/Remotion pipeline below. **If the user wants the
-edit done inside Adobe Premiere Pro via the `premiere-pro` MCP** (e.g. "edite a
-sequência no Premiere", "corte via MCP"), the METHOD here is unchanged (audio-primary,
-cut on silence, phase gate, grade with taste) but the hands change — **read
-`references/premiere-mcp.md`** for the battle-tested Premiere workflow (razor +
-ripple recipe, the V/A-link ripple caveat, `color_correct` LOG-strength lesson,
-voice master, `export_frame` gotcha, tool cheat-sheet). Transcription/`edl.json`
-are identical and cached — reuse an approved `edl.json`; skip `cut.mp4`/preview.
+The default engine is the ffmpeg/Remotion pipeline below. **If the user asks for the
+edit inside Adobe Premiere Pro via the `premiere-pro` MCP** ("edite a sequência no
+Premiere", "corte via MCP"), the METHOD is unchanged — audio-primary, cut on
+silence, phase gate, grade with taste — but the hands change: **read
+`references/premiere-mcp.md`**. Transcription and `edl.json` are identical and
+cached, so reuse an approved EDL and skip `cut.mp4`/preview.
 
 ## Directory layout
 
@@ -78,19 +76,19 @@ Helpers live in `helpers/`, resolved relative to this SKILL.md (usually `~/.clau
 ## Helpers
 
 Phase 1:
-- **`ingest_url.py <url> --dest <videos_dir> [--section 12:00-25:30] [--max-height 1080]`** — edit from a link: yt-dlp → MP4 (≤1080p, ascii-safe filename) straight into the videos dir; from there it's a source like any other. `--section` downloads ONLY a time range of a longform source (keyframe-accurate) — the cheap way to clip minutes 12–25 of a 1h video. `--simulate` prints title/duration/resolution without downloading (confirm before big fetches; run those in the background).
-- **`transcribe.py <video> --edit-dir <edit> [--language pt] [--model large-v3-turbo]`** — word-level, cached, local by default. Extracts mono 16kHz MP3, transcribes with Whisper, then forced-aligns. No upload cap and no chunking — the whole source goes through in one pass. Pass `--language` when you know it: auto-detect costs a pass and can pick wrong on a short clip.
+- **`ingest_url.py <url> --dest <videos_dir> [--section 12:00-25:30] [--max-height 1080]`** — edit from a link: yt-dlp → MP4 (≤1080p) straight into the videos dir; from there it's a source like any other. `--section` downloads ONLY a time range of a longform source (keyframe-accurate) — the cheap way to clip minutes 12–25 of a 1h video. `--simulate` prints title/duration/resolution without downloading (confirm before big fetches; run those in the background).
+- **`transcribe.py <video> --edit-dir <edit> [--language pt] [--model large-v3-turbo]`** — word-level, cached, local (WhisperX + forced alignment). No cap, no chunking. Pass `--language` when you know it — auto-detect costs a pass and can pick wrong on a short clip.
 - **`transcribe_batch.py <videos_dir>`** — every source in a directory, one at a time (local inference already uses every core). Per-file cached, and a failure on one source doesn't lose the ones already done.
 - **`pack_transcripts.py --edit-dir <dir>`** — transcripts → `takes_packed.md` (phrase-level, breaks on ≥0.5s silence). **The** reading view: 1/10 the tokens of raw JSON.
 - **`speech_regions.py <video>`** — acoustic speech intervals via silencedetect. The source of truth for cut EDGES (Whisper times drift/stretch). Answers *where* speech is — never *how loud* it is.
-- **`voice_levels.py <video> [--edit-dir <dir>] [--edl edl.json] [--drop-db 5]`** — the source of truth for speech LEVEL. Learns the noise floor (Ridler-Calvard intermeans, not a percentile) and the speaker's own median from the recording itself, then flags every phrase, sub-phrase run, and EDL range sitting ≥5 dB under that median and sizes a `gain_db` for each. Catches the failure nothing else sees: a whispered aside or a trailing-off sentence where every word is present, the transcript is perfect, `speech_regions` says "speech", `verify_cut` finds no pop and no dead air — and the viewer still hits a passage they cannot hear. **Run it in Phase 1 before writing the EDL.**
-- **`detect_color.py <video> [--json]`** — resolves NORMAL vs LOG from the file instead of asking. Tier 1 metadata (HLG/PQ declare themselves; Apple Log's signature is ProRes 10-bit 4:2:2 + BT.2020 primaries + EMPTY transfer; vendor tags when present), Tier 2 image statistics when the metadata is silent — which is common, since a Sony shooting S-Log3 to H.264 often declares plain bt709 and any transcode drops the tags. Returns the profile, a **confidence**, the evidence, and the `grade` to apply (measured from the footage for non-Apple LOG). Only `confidence: low` should send you back to the user.
+- **`voice_levels.py <video> [--edit-dir <dir>] [--edl edl.json] [--drop-db 5]`** — the source of truth for speech LEVEL. Flags every phrase, run and EDL range ≥5 dB under the speaker's own median and sizes a `gain_db`. It catches what nothing else does: a whispered aside where the transcript is perfect, `speech_regions` says "speech" and `verify_cut` finds no fault — and the viewer still cannot hear it. **Run it before writing the EDL.**
+- **`detect_color.py <video> [--json]`** — resolves NORMAL vs LOG from the file instead of asking — metadata first, image statistics when the metadata is silent (common: a transcode drops the tags). Returns profile, **confidence**, evidence and the `grade` to apply. Only `confidence: low` should send you back to the user; the identification detail is in `references/log-grade.md`.
 - **`render.py <edl.json> -o cut.mp4 --no-subtitles [--voice-master] [--keep-resolution] [--jobs N] [--no-jcut] [--jcut-lead N] [--jcut-tail-trim N]`** — per-segment extract (grade + fades, **parallel**) → **J-cut overlap assembly (default)** or lossless concat → optional voice master → loudnorm. Writes `jcut_timeline` into the EDL: the real output positions, which is what everything downstream must index off. Short-form fps is automatic: **30fps for 30fps+ sources, else 24** (longform keeps source fps via `--keep-resolution`). Set `edit-data.json` `fps` to match the resulting `cut.mp4`.
-- **`verify_cut.py <edl.json> <cut.mp4> [--min-silence 1.2]`** — numeric self-eval: duration, per-junction pop/clipped-word probes, dead air, black frames, clipping, **and range level balance** (each range's RMS vs the median range; `LOW-LEVEL` under −4 dB). ~350 tokens of text instead of N images. The range-balance line is the convergence test for a `gain_db` fix — unlike `voice_levels`' run detector it compares a range against its peers rather than against a threshold it was selected by, so a corrected take actually stops being flagged.
+- **`verify_cut.py <edl.json> <cut.mp4> [--min-silence 1.2]`** — numeric self-eval: duration, per-junction pop/clipped-word probes, dead air, black frames, clipping, **and range level balance** (each range's RMS vs the median range; `LOW-LEVEL` under −4 dB). ~350 tokens of text instead of N images. The range-balance line is the convergence test for a `gain_db` fix.
 - **`grade.py <in> -o <out>`** — grade presets/raw filters. **`--candidates "a=<filter>;b=<preset>;original=" --frame <t> -o cmp.png`** renders N looks on the SAME frame into one labeled montage.
 - **`timeline_view.py <video> <start> <end>`** — filmstrip+waveform PNG for ONE flagged spot, not a scan tool.
 - **`contact_sheet.py <video> --times t1 t2 … -o sheet.png`** — N frames in one labeled grid; the way to eyeball several moments **you already know**.
-- **`watch_video.py <video> [--mode scene|keyframe|uniform] [--times t1 t2 …] [--start/--end] [--max-frames 24]`** — "what is IN this footage?" when you *don't* know where to look: scene-change detection (auto-fallback to uniform sampling on static/talking-head sources) + perceptual dedup (near-identical frames collapse — a held take becomes a handful of tiles) → labeled contact sheets in `edit/verify/watch_<stem>/`, one Read per sheet. Use for visual inventory of unknown material, eyeballing takes across sources, and surveying `cut.mp4` beyond verify_cut's numbers. `--times` pins transcript-cue frames: deictic moments from `takes_packed.md` ("olha isso", "como você pode ver") are LOW visual change and invisible to scene detection — pin them to decide B-roll/callout/zoom placement in Phase 2.
+- **`watch_video.py <video> [--mode scene|keyframe|uniform] [--times t1 t2 …] [--start/--end] [--max-frames 24]`** — "what is IN this footage?" when you *don't* know where to look: scene detection + perceptual dedup → labeled contact sheets in `edit/verify/watch_<stem>/`, one Read per sheet. For visual inventory of unknown material, and for surveying `cut.mp4` beyond verify_cut's numbers. `--times` pins transcript-cue frames: deictic moments from `takes_packed.md` ("olha isso", "como você pode ver") are LOW visual change and invisible to scene detection — pin them to decide B-roll/callout/zoom placement in Phase 2.
 
 Phase 2/3 helpers (captions, face tracking, image search, music) are listed in
 the track reference you load after the gate.
@@ -123,11 +121,10 @@ Every edit session gets the same interactive interface in the user's preview pan
    "when the user starts editing":
    `Monitor(command="python3 <skill>/helpers/watch_edits.py '<edit>'", description="escolhas e marcações salvas no preview", persistent=true)`
 
-   Without it the UI still writes `preview_style.json` / `preview_edits.json` and
-   **nothing happens** — the user clicks Salvar, sees the confirmation toast, and
-   waits for work that was never triggered. The failure is silent on both ends:
-   they think they told you, and you never heard. `ps aux | grep watch_edits`
-   is the one-second check when you are unsure.
+   Without it the UI still writes its files and **nothing happens** — the user
+   clicks Salvar, sees the toast, and waits for work that was never triggered.
+   Silent on both ends: they think they told you, you never heard.
+   `ps aux | grep watch_edits` when unsure.
 
 **Keep state.json fresh** — bump `phase` and `message` at each milestone (cut rendered, cut approved, Phase 2 rendered…). The UI polls and hot-reloads by itself; waveform + filmstrip regenerate automatically when cut.mp4 changes.
 
@@ -136,16 +133,9 @@ The timeline shows one track per KIND: markers, captions, video, audio (the mix)
 data-driven CustomGraphics windows), soundtrack. Anything you leave in code instead
 of data simply will not appear.
 
-**A1 / A2 are folded inside the audio track**, opened by the caret on its chip —
-they answer "where is the J-cut", which is a question you ask once, so they do not
-sit on screen competing with the mix. They exist whenever the EDL carries a
-`jcut_timeline`; the caret only appears then. The open/closed choice is remembered
-across reloads (`localStorage`), so do not expect a fixed initial state.
-
-Takes alternate between the two lanes, exactly as two audio tracks read in an NLE
-— on a single lane an overlap is invisible, because two blocks sharing time just
-look like one long block. The hatched orange head on each block is the lead: how
-much voice arrives before that take's picture. Hover gives frames and tail trim.
+**A1 / A2** are the J-cut takes, folded inside the audio track behind a caret that
+only appears when the EDL carries a `jcut_timeline`. The hatched orange head on a
+block is the lead — how much voice arrives before that take's picture.
 
 **What the user can do in the UI:** scrub, trim take edges, delete takes, drag
 insert/hook chips — and **mark correction ranges**: park the needle, press `M`
@@ -388,13 +378,11 @@ Append one section per session at `<edit>/project.md`:
 On startup, read it if it exists and summarize the last session in one sentence before asking whether to continue.
 
 ## Anti-patterns
-- Setting cut edges from Whisper word times (drift/stretch/collapsed repeats) — use `speech_regions.py`.
-- Judging audio by the transcript. A perfect transcript says nothing about level: Whisper reads a whisper fine, the viewer does not. Run `voice_levels.py` on every source in Phase 1.
-- Rewriting a caption, or telling the user a sentence broke, on the strength of the source transcript's word times. Transcribe the isolated range first — a stretched word mis-attributes its neighbours and an under-level passage is usually a false start the speaker already re-took.
-- Sizing a range's `gain_db` off the range average — a range holding a whispered clause plus a normal one averages out to "fine" while the whisper stays inaudible. Size it off the WORST low run inside the range (`voice_levels.py --edl` does this).
-- Chasing `voice_levels`' low-run numbers to zero on a corrected render. Runs are SELECTED for being under the threshold, so the passage you just fixed still lists its decay tails. Convergence is `verify_cut.py`'s range-balance line; a ~2 dB spread between ranges is a finished job, 0 dB is over-flattened delivery.
-- Fixing an under-level take with a global compressor or `--voice-master` — that pumps the takes that were already fine. Use per-range `gain_db`.
-- Cutting exactly at a word's offset (clips the sibilant) — leave the 50–80ms trail.
+- Every mistake under **Cut craft** — Whisper times as edges, cutting at a word's
+  offset, judging level by the transcript, sizing `gain_db` off a range average,
+  chasing the low-run numbers to zero, fixing one quiet take with a global
+  compressor. They are stated there as procedure; this is the reminder that they
+  are also the way Phase 1 goes wrong.
 - Committing a grade without the one-frame candidates montage + user pick.
 - Shipping a `cut.mp4` that is not tagged bt709/tv — Phase 2 will re-interpret it and the approved grade drifts.
 - Butt-joining the takes. The J-cut is the default; `--no-jcut` is a deliberate exception, not a shortcut.
