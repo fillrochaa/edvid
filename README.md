@@ -106,7 +106,6 @@ usado — você decide na hora:
 |---|---|
 | `PEXELS_API_KEY` | imagens e vídeos ilustrativos na Fase 2 |
 | `TREBLO_API_KEY` | trilha sonora gerada por IA na Fase 3 |
-| `ELEVENLABS_API_KEY` | segunda opinião de transcrição num trecho duvidoso |
 | `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | imagens de marcas/pessoas específicas |
 
 Imagens funcionam sem chave via Wikimedia Commons, e trilha funciona com um

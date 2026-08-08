@@ -3,17 +3,15 @@
 Walks <videos_dir> for common video extensions, transcribes each with WhisperX,
 writes transcripts to <videos_dir>/edit/transcripts/<name>.json.
 
-WhisperX is local, so it already saturates the machine on ONE file — this runs
-serially by default. --workers only helps the optional ElevenLabs cloud backend,
-which is I/O-bound.
+WhisperX is local and already saturates the machine on ONE file, so this runs
+serially. There is nothing I/O-bound left to overlap.
 
 Cached per-file: any source that already has a transcript is skipped.
 
 Usage:
-    python helpers/transcribe_batch.py <videos_dir>
-    python helpers/transcribe_batch.py <videos_dir> --workers 4
-    python helpers/transcribe_batch.py <videos_dir> --num-speakers 2
-    python helpers/transcribe_batch.py <videos_dir> --edit-dir /custom/edit
+    uv run python helpers/transcribe_batch.py <videos_dir>
+    uv run python helpers/transcribe_batch.py <videos_dir> --language pt
+    uv run python helpers/transcribe_batch.py <videos_dir> --edit-dir /custom/edit
 """
 
 from __future__ import annotations
@@ -21,14 +19,9 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from transcribe import (
-    WHISPERX_MODEL,
-    load_elevenlabs_key,
-    transcribe_one,
-)
+from transcribe import WHISPERX_MODEL, transcribe_one
 
 
 VIDEO_EXTS = {".mp4", ".MP4", ".mov", ".MOV", ".mkv", ".MKV", ".avi", ".AVI", ".m4v"}
@@ -43,7 +36,7 @@ def find_videos(videos_dir: Path) -> list[Path]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Parallel batch transcription of a videos directory")
+    ap = argparse.ArgumentParser(description="Batch transcription of a videos directory")
     ap.add_argument("videos_dir", type=Path, help="Directory containing source videos")
     ap.add_argument(
         "--edit-dir",
@@ -51,9 +44,6 @@ def main() -> None:
         default=None,
         help="Edit output directory (default: <videos_dir>/edit)",
     )
-    ap.add_argument("--workers", type=int, default=1,
-                    help="Parallel workers (default: 1). Only raise this for "
-                         "--backend elevenlabs; local transcription contends with itself.")
     ap.add_argument(
         "--language",
         type=str,
@@ -71,15 +61,6 @@ def main() -> None:
         type=str,
         default=WHISPERX_MODEL,
         help=f"Whisper model for WhisperX (default: {WHISPERX_MODEL}).",
-    )
-    ap.add_argument(
-        "--backend",
-        type=str,
-        default="auto",
-        choices=["auto", "whisperx", "elevenlabs"],
-        help="Transcription backend per file. 'auto' (default) is WhisperX: local, "
-             "no key, forced alignment. 'elevenlabs' is an optional cloud second "
-             "opinion and needs ELEVENLABS_API_KEY.",
     )
     args = ap.parse_args()
 
@@ -102,42 +83,28 @@ def main() -> None:
         print("nothing to do")
         return
 
-    elevenlabs_key = load_elevenlabs_key()
-
-    # WhisperX already saturates every core on one file — running several at
-    # once only makes them contend and finish later. The cloud backend is
-    # I/O-bound, so there parallel workers are free throughput.
-    if args.backend != "elevenlabs" and args.workers != 1:
-        print("WhisperX runs one file at a time (local inference already uses every core)")
-        args.workers = 1
-
-    print(f"transcribing {len(pending)} files with {args.workers} parallel workers")
+    print(f"transcribing {len(pending)} files, one at a time "
+          "(local inference already uses every core)")
     t0 = time.time()
 
     errors: list[tuple[Path, str]] = []
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {
-            pool.submit(
-                transcribe_one,
+    for i, v in enumerate(pending, 1):
+        print(f"  [{i}/{len(pending)}] {v.stem}", flush=True)
+        try:
+            out = transcribe_one(
                 video=v,
                 edit_dir=edit_dir,
                 language=args.language,
                 num_speakers=args.num_speakers,
                 model=args.model,
                 verbose=False,
-                elevenlabs_key=elevenlabs_key,
-                backend=args.backend,
-            ): v
-            for v in pending
-        }
-        for fut in as_completed(futures):
-            v = futures[fut]
-            try:
-                out = fut.result()
-                print(f"  + {v.stem}  →  {out.name}")
-            except Exception as e:
-                errors.append((v, str(e)))
-                print(f"  x {v.stem}  FAILED: {e}")
+            )
+            print(f"  + {v.stem}  →  {out.name}")
+        except Exception as e:
+            # One bad source must not cost the whole batch: the sources already
+            # done stay cached, and a re-run picks up where this left off.
+            errors.append((v, str(e)))
+            print(f"  x {v.stem}  FAILED: {e}")
 
     dt = time.time() - t0
     print(f"\ndone in {dt:.1f}s")
