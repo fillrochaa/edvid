@@ -26,23 +26,10 @@ São **dois comandos**: um para os programas que a edvid usa, outro para a edvid
 - **`git`** — a edvid não usa, mas o **Claude Code** usa. Se você vai rodar a
   edvid dentro do Claude Code, instale; noutro agente, pode pular.
 
-**Windows** — abra o **PowerShell** (não o Prompt de Comando antigo) e rode uma
-linha por vez, para saber qual falhou se alguma falhar:
+**Windows** — abra o **PowerShell** (não o Prompt de Comando antigo):
 
 ```powershell
-winget install astral-sh.uv
-```
-
-```powershell
-winget install Gyan.FFmpeg
-```
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-```powershell
-winget install Git.Git
+winget install astral-sh.uv Gyan.FFmpeg OpenJS.NodeJS.LTS Git.Git
 ```
 
 **macOS** — abra o Terminal. Se você ainda não tem o Homebrew, o comando está em
@@ -62,7 +49,8 @@ antigo; confira com `node --version` que é 18 ou maior.
 Isso não é opcional. Programas recém-instalados só aparecem numa janela nova —
 sem isso o próximo comando falha com *"não é reconhecido"*.
 
-Confira que todos responderam:
+**Confira que os quatro responderam** antes de seguir. Um gerenciador de pacotes
+pode instalar três e falhar no quarto sem que isso fique óbvio no meio da saída:
 
 ```powershell
 uv --version; ffmpeg -version | Select-Object -First 1; node --version; git --version
@@ -71,6 +59,13 @@ uv --version; ffmpeg -version | Select-Object -First 1; node --version; git --ve
 ```bash
 uv --version; ffmpeg -version | head -1; node --version; git --version
 ```
+
+Se algum não responder, instale só ele e volte aqui. No Windows:
+`winget install astral-sh.uv` · `winget install Gyan.FFmpeg` ·
+`winget install OpenJS.NodeJS.LTS` · `winget install Git.Git`.
+
+Se você pular esta conferência não tem problema — o instalador do passo 3 refaz
+ela no fim e diz o que faltou.
 
 ### 3. Instale a edvid — um comando
 
