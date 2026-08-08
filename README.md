@@ -23,8 +23,8 @@ São **dois comandos**: um para os programas que a edvid usa, outro para a edvid
   cuida de instalar o Python certo, então você não instala Python separado.
 - **`ffmpeg`** — corte, cor e render (Fase 1).
 - **`node`** — Remotion, usado nas legendas e gráficos (Fase 2).
-- **`git`** — a edvid não usa, mas o **Claude Code** usa. Se você vai rodar a
-  edvid dentro do Claude Code, instale; noutro agente, pode pular.
+- **`git`** — a edvid não usa. É útil para o Claude Code e para quem for
+  desenvolver a skill; no Codex, não é requisito da edição.
 
 **Windows** — abra o **PowerShell** (não o Prompt de Comando antigo):
 
@@ -116,7 +116,7 @@ arquivo de música local. Nada da Fase 2 ou 3 fica bloqueado por falta de chave.
 ## Primeiro uso
 
 1. Coloque seus vídeos brutos numa pasta.
-2. Abra o Claude Code **dentro dessa pasta**.
+2. Abra o Codex ou o Claude Code **dentro dessa pasta**.
 3. Diga: *"edita esses vídeos num Reels"* ou *"faz um inventário dessas tomadas
    e me propõe uma estratégia"*.
 
@@ -166,8 +166,8 @@ depois de instalar o `uv`. Feche essa janela, abra outra e tente de novo.
 **Uma janela pedindo para instalar as Ferramentas de Linha de Comando (macOS)**
 — normal na primeira vez. Aceite, espere terminar e rode o comando de novo.
 
-**O Claude não encontra a skill** — reinicie o Claude Code. O instalador
-imprime onde instalou; confirme que a pasta está lá.
+**O agente não encontra a skill** — reinicie o Codex ou o Claude Code. O
+instalador imprime onde instalou; confirme que a pasta está lá.
 
 **`ModuleNotFoundError` ao usar a skill** — as dependências não terminaram de
 instalar. Rode `uv sync --directory <pasta que o instalador imprimiu>`.

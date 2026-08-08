@@ -44,8 +44,8 @@ reading of this skill.
 ## Two layouts
 
 - **User layout** (what the installer produces, and what you should assume): the
-  skill directory IS `~/.claude/skills/edvid`. Nothing to register, no symlink,
-  identical on every OS.
+  skill directory IS `~/.claude/skills/edvid` or `~/.codex/skills/edvid`.
+  Nothing to register, no symlink, identical on every OS.
 - **Contributor layout**: repo cloned wherever the user keeps projects, plus a
   link into the skills directory. Only for someone developing the skill. The
   installer detects a `.git` there and refuses to overwrite it.
@@ -53,11 +53,14 @@ reading of this skill.
     ```bash
     # macOS / Linux
     ln -sfn ~/Developer/edvid ~/.claude/skills/edvid
+    ln -sfn ~/Developer/edvid ~/.codex/skills/edvid
     ```
 
     ```powershell
     # Windows — a junction needs no admin rights, unlike a symlink
     New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\edvid" `
+      -Target "$env:USERPROFILE\Developer\edvid"
+    New-Item -ItemType Junction -Path "$env:USERPROFILE\.codex\skills\edvid" `
       -Target "$env:USERPROFILE\Developer\edvid"
     ```
 

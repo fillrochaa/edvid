@@ -1276,10 +1276,9 @@ $('setupGo').addEventListener('click', async () => {
     body: JSON.stringify(payload),
   });
   if ((await res.json()).ok) {
+    S.savedPending = true;
     renderSetup();
-    toast(rerender
-      ? '✓ Novo estilo enviado — o Claude vai refazer a Fase 2 com ele'
-      : '✓ Estilo enviado — o Claude vai montar a Fase 2 com essas escolhas', 5000);
+    refreshHeader();
   } else {
     toast('Erro ao enviar — o servidor está de pé?', 4000);
   }
@@ -1840,7 +1839,6 @@ $('btnSave').addEventListener('click', async () => {
     S.draft = S.draft.filter((r) => !r.removed);
     S.insertsDraft.forEach((c) => { c.orig = { start: c.start, end: c.end }; });
     renderAll(); refreshHeader();
-    toast('✓ Salvo — o Claude foi avisado e vai aplicar os ajustes', 5000);
   } else {
     toast('Erro ao salvar — o servidor está de pé?', 4000);
   }

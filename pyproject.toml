@@ -1,7 +1,7 @@
 [project]
 name = "edvid"
 version = "0.1.0"
-description = "Conversation-driven video editor skill for Claude Code"
+description = "Conversation-driven video editor skill for Codex and Claude Code"
 license = { file = "LICENSE" }
 # Capped below 3.14: torch publishes no cp314 wheels, which silently broke BOTH
 # torch-backed extras (matting, whisperx) for anyone whose uv picked 3.14. The
