@@ -7,14 +7,13 @@ description: Edvid — edit any video by conversation, in phases. Two tracks —
 
 ## Principle
 
-1. **Two phases, one gate between them.** PHASE 1 is the clean cut + color grade. Show it and **wait for approval**. PHASE 2 (captions, graphics, images) only starts after the cut is signed off.
+1. **Two phases, one gate between them.** PHASE 1 is the clean cut + color grade; PHASE 2 is captions, graphics and images. (Hard Rule 1 enforces the gate.)
 2. **LLM reasons from raw transcript + on-demand visuals.** The only derived artifact that earns its keep is the packed phrase-level transcript (`takes_packed.md`). Everything else you derive at decision time.
 3. **Audio is primary, visuals follow.** Cut candidates come from speech boundaries and silence gaps.
 4. **Ask → confirm → execute → iterate → persist.** Never touch the cut until the user confirms the strategy in plain English.
 5. **Generalize.** Look at the material, ask the user, then edit — never assume what kind of video it is.
 6. **Artistic freedom is the default.** Specific values here are worked examples, not mandates. Only the Hard Rules are mandatory.
-7. **Verify your own output before showing it** — numbers first, images only where the numbers flag (see Self-eval).
-8. **Spend tokens where taste lives.** Machine data (raw transcripts, captions.json, track.json, template code) is for programs, not for reading. Batch visual checks into one montage instead of N images.
+7. **Spend tokens where taste lives.** Machine data is for programs, not for reading; verification is numeric before it is visual. Your attention is the scarce resource — put it on the edit, not on parsing JSON. (Hard Rules 12 and 13 say what this forbids.)
 
 ## Hard Rules (production correctness — non-negotiable)
 
@@ -93,15 +92,15 @@ Phase 1:
 - **`contact_sheet.py <video> --times t1 t2 … -o sheet.png`** — N frames in one labeled grid; the way to eyeball several moments **you already know**.
 - **`watch_video.py <video> [--mode scene|keyframe|uniform] [--times t1 t2 …] [--start/--end] [--max-frames 24]`** — "what is IN this footage?" when you *don't* know where to look: scene-change detection (auto-fallback to uniform sampling on static/talking-head sources) + perceptual dedup (near-identical frames collapse — a held take becomes a handful of tiles) → labeled contact sheets in `edit/verify/watch_<stem>/`, one Read per sheet. Use for visual inventory of unknown material, eyeballing takes across sources, and surveying `cut.mp4` beyond verify_cut's numbers. `--times` pins transcript-cue frames: deictic moments from `takes_packed.md` ("olha isso", "como você pode ver") are LOW visual change and invisible to scene detection — pin them to decide B-roll/callout/zoom placement in Phase 2.
 
-Phase 2/3 (see the track references for usage):
-- **`captions_for_remotion.py`** (karaoke JSON) · **`face_track.py`** (eye-track JSON) · **`person_matte.py`** (RVM alpha matte; `uv sync --extra matting`) · **`pexels_search.py`** · **`wikimedia_images.py`** (no key, brands/people first choice) · **`google_images.py`** (fallback, mind rights) · **`captions_srt.py`** (longform .srt) · **`chapters.py`** (YouTube chapters) · **`treblo_music.py`** (AI soundtrack — pass a context-driven MUSICAL vibe: genre + instruments + tempo + mood, not SFX-y phrasing; auto-framed as a composed instrumental).
+Phase 2/3 helpers (captions, face tracking, image search, music) are listed in
+the track reference you load after the gate.
 
 Interface:
 - **`preview_server.py --root <edit> [--port 4820]`** — serves the standard preview interface (see the Preview interface section). App code lives at `assets/preview/` and is IMMUTABLE.
 
 ## Preview interface (standard — launch it at the start of every edit)
 
-Every edit session gets the same interactive interface in the user's preview panel: a video-editor timeline (video track with filmstrip + audio track with waveform), a live playhead that scrubs the render in real time, per-take trim handles and take removal, and — from Phase 2 — caption and insert tracks. The layout follows the source aspect on its own: **vertical** sources put a tall player on the right with the transport + timeline on the left; **horizontal** sources keep the player stacked above the timeline. Dark glass, Edvid brand. **Never build a UI per session and never edit `assets/preview/`** — it is data-driven, like the Remotion templates.
+Every edit session gets the same interactive interface in the user's preview panel: a video-editor timeline (video track with filmstrip + audio track with waveform), a live playhead that scrubs the render in real time, per-take trim handles and take removal, and — from Phase 2 — caption and insert tracks. The layout follows the source aspect on its own: **vertical** sources put a tall player on the right with the transport + timeline on the left; **horizontal** sources keep the player stacked above the timeline. Dark glass, Edvid brand. **Never build a UI per session** — feed the standard interface with `state.json`. Editing `assets/preview/` is allowed only when the user asks for a UI change; it is shared, so the improvement lands for every project.
 
 **Launch (do this when a session starts, even before the first render — the UI shows a waiting state):**
 1. Write `<edit>/state.json`:
@@ -148,17 +147,6 @@ Takes alternate between the two lanes, exactly as two audio tracks read in an NL
 look like one long block. The hatched orange head on each block is the lead: how
 much voice arrives before that take's picture. Hover gives frames and tail trim.
 
-Two structural constraints, learned the hard way:
-- **Nothing in the ancestor chain of `.track-label` may have `overflow:hidden`** —
-  the gutter mask rides `position:sticky` there, and an overflow ancestor makes a
-  new scroll container and strands it. That rules out the usual max-height
-  accordion; the reveal animates the blocks instead.
-- **The panel's `pointerdown` must ignore the gutter.** It falls through to a
-  scrub branch that calls `setPointerCapture` on the panel, which retargets the
-  following click — a real click on a gutter control was swallowed entirely (while
-  a programmatic `.click()` worked, which is what makes it confusing to diagnose)
-  and the needle jumped to 0, since the gutter sits left of t=0.
-
 **What the user can do in the UI:** scrub, trim take edges, delete takes, drag
 insert/hook chips — and **mark correction ranges**: park the needle, press `M`
 (or the IN button), move to the end of the problem, press `M` again — the note box
@@ -167,49 +155,16 @@ on the pointer. Shortcuts live behind the **?** button at the bottom right.
 
 ### The Estilo tab (between Fase 1 and Fase 2)
 
-The cut is approved and nothing about the LOOK of Fase 2 is decided yet. **Do not
-ask the style questions in chat** — set `"awaitingStyle": true` in `state.json`
-and the UI opens its own tab, sitting between FASE 1 and FASE 2:
+The cut is approved and nothing about the LOOK of Fase 2 is decided. **Do not ask
+the style questions in chat** — the gate screen exists so the user SEES what each
+style does, and a chat list of names asks them to choose blind. Set
+`"awaitingStyle": true` in `state.json`; the UI opens its own tab and
+`watch_edits.py` notifies you when they save `<edit>/preview_style.json`.
 
-- **Tipo de edição** — `limpa` ("Limpa": no split inserts, full frame throughout —
-  **the default**, and the right pick for a talking-head cut or when the user will
-  place images by hand later), `split` ("Tela dividida"), `split2` ("Tela
-  dividida 2").
-- **Cor de destaque** — `accent`, a hex. Sits BEFORE the text styles, because it
-  is what they paint with. One spectral swatch (the OS picker) plus a hex field,
-  synced both ways — no preset row. Only `realce`/`misto` headlines and the
-  `stacked` caption paint an accent, so the save also carries **`accentUsed`**;
-  when it is `false` the picked styles have none and the colour is not an
-  instruction to invent a place for one.
-- **Estilo de headline** — `outline`, `card`, `realce`, `misto`. Always two
-  lines, size fitted to the text (see the track reference).
-- **Estilo de legenda** — three animated (`karaoke`, `stacked`/"Empilhado",
-  `scatter`/"Disperso") and three static (`simples`, `serifada`, `classica`).
-- **Elementos da edição** — checkboxes: `tracking` (movimento de tracking),
-  `zoomAuto` (automação de zoom in), `zoomCuts` (zoom in/out nos cortes),
-  `flashCut` (flash na transição), `musicAI` (trilha sonora com IA), plus a
-  free-text observation field.
-
-Saving writes `<edit>/preview_style.json` (its OWN file — a style pick and a
-timeline correction are different screens at different moments, and one shared
-file would clobber the other) and `watch_edits.py` notifies you with the picks,
-**what was left out**, and the observation. Then: build Fase 2 from exactly those
-choices, **copy them into `state.json` as `style`**, clear `awaitingStyle`, and
-delete `preview_style.json`.
-
-Writing `style` back is not bookkeeping — it is what keeps the tab open. The tab
-is enabled while `awaitingStyle` OR `style` is set, so the user can return, change
-a caption style or tick one more element, and save again. That save arrives with
-`"rerender": true` and the watcher says **REFAÇA a Fase 2** — re-render with the
-new choices, don't treat it as a first pick.
-
-**The catalog lives in `STYLE_CATALOG` (app.js), not in a session.** A new editing
-or caption style is one entry there plus its implementation in the track
-reference; adding it in chat only, for one project, makes it invisible to every
-other project. What is in it today is the **short-form** vocabulary (tela
-dividida, karaokê/empilhado) — on a longform job the gate has nothing to offer
-yet, so skip `awaitingStyle` and ask the layer questions in chat until longform
-entries exist here.
+The catalog of options and what each pick means is in the track reference, which
+you read next anyway — **`references/shortform.md`**. Short-form only: the gate
+has no longform vocabulary yet, so on a longform job skip `awaitingStyle` and ask
+the layer questions in chat.
 
 **When the user saves timeline edits**, the UI writes `<edit>/preview_edits.json`
 (never touches edl.json) and `watch_edits.py` notifies you automatically. To apply:
@@ -304,43 +259,14 @@ Reason about the image, don't preset-blind. Mental model ASC CDL: per channel `o
   bit-depth-safe. Keep that guard in front of any new grade caller.
 - **Standard/Rec.709** → light corrective or none. A user `.cube` goes first as `lut3d=`.
 
-### LOG profiles — what `detect_color.py` is deciding
+### LOG / HDR sources
 
-`detect_color.py` resolves this automatically; the table below is what it encodes
-and what you need when reading its evidence or extending it. Probe by hand only
-when the helper reports `low` confidence:
-
-```bash
-ffprobe -v error -select_streams v:0 \
-  -show_entries stream=codec_name,profile,color_transfer,color_primaries,color_space \
-  -show_entries stream_tags=com.apple.proapps.logprofile -of default=nw=1 <source>
-```
-
-| What you see | Profile | Grade |
-|---|---|---|
-| `codec_name=prores`, `pix_fmt=yuv422p10le`, `color_primaries=bt2020`, `color_transfer=unknown`, encoder tag `Apple ProRes` | **Apple Log** | preset `apple_log` |
-| `color_transfer=arib-std-b67` | HLG | tonemapped by `render.py`; light corrective only |
-| `color_transfer=smpte2084` | PQ / HDR10 | tonemapped by `render.py`; light corrective only |
-| Sony `slog3`/`s-gamut3`, Panasonic `v-log`, Canon `clog3` in the tags | that vendor's LOG | its own expansion — build one, then add it to `PRESETS` |
-
-**Nothing in the file says "Apple Log".** The signature above IS the
-identification — measured on a real iPhone ProRes file: BT.2020 primaries, a
-10-bit 4:2:2 ProRes stream, and an EMPTY transfer tag. If you wait for a tag that
-names the profile you will never find one, and an HDR-only check calls it plain SDR.
-
-**Apple Log is the one that is already proven** (`apple_log` in `grade.py`,
-approved 2026-07 on an iPhone ProRes talking head): cool, contrasty, skin rosy.
-Two things about it that are not obvious:
-- The file declares **BT.2020 primaries with an empty transfer tag**, so an
-  HDR-only check reads it as ordinary SDR. `render.py`'s `wide_gamut_chain`
-  converts it to Rec.709 before the grade — the preset assumes that already ran.
-- `hue=h=-9` is load-bearing: expanding Apple Log pushes skin yellow-green, and
-  the negative rotation brings it back. Rotating positive makes it worse.
-- Its `colorlevels` **must** be fed 8-bit (see the 8-bit bullet above). LOG sources
-  are the 10-bit ones, so this preset is exactly where the bug bites — and it bites
-  silently: the `--candidates` montage grades an 8-bit frame and looks right, so
-  only the rendered cut goes black. `verify_cut.py` catches it on the "black
-  frames" line; don't dismiss that line as a false positive on a LOG source.
+`detect_color.py` resolves the profile and returns the `grade` to apply, so the
+normal path needs nothing here. When it returns LOG/HLG/PQ, reports
+`confidence: low`, or you are adding a vendor preset, **read
+`references/log-grade.md`** — it carries the identification table (Apple Log has
+no tag that names it), the Apple Log preset's two load-bearing details, and why
+the grade must run at 8-bit.
 
 Still show the candidates montage and get a pick — a preset is a starting point,
 not permission to skip the approval.
@@ -462,37 +388,6 @@ Append one section per session at `<edit>/project.md`:
 On startup, read it if it exists and summarize the last session in one sentence before asking whether to continue.
 
 ## Anti-patterns
-
-- Starting Phase 2 before cut approval (the gate is a Hard Rule).
-- Asking the style questions in chat, or starting Phase 2 before the pick lands.
-  The gate screen exists so the user SEES what each style does — a chat list of
-  names asks them to choose blind. Set `awaitingStyle` and wait for
-  `preview_style.json`.
-- Treating an unchecked element as "não pediu". It is an explicit NO: the user
-  looked at "Movimento de tracking" and left it off. `watch_edits.py` prints the
-  `fora:` line for exactly this reason.
-- Hardcoding `#ff5200` (or any accent) in the template. The Estilo tab lets the
-  user pick it, so a literal makes the preview show their colour and the render
-  show orange — worse than not offering the choice. Feed `accent` into
-  `hook.accent` + `captions.accent`.
-- Changing a caption's look in the template without changing its preview in
-  `app.js` (`buildKaraokeDemo` / `buildStackedDemo`). The gate's previews render
-  the real faces, sizes and motion, scaled from 1080-wide — that is the whole
-  reason the user can choose by looking. A preview that lies about the style is
-  worse than no preview.
-- Reading `transcripts/*.json`, `captions.json`, `track.json`, `segments.json`, or template TSX into context — machine data; read `takes_packed.md`/helper output instead.
-- Editing `src/Main.tsx` — the template is data-driven; the JSON is the edit.
-- Hardcoding a bespoke graphic's timings inside `CustomGraphics.tsx`. Put the
-  windows in an `edit-data.json` array (a key the template ignores, e.g.
-  `splitInserts`) and map over it — otherwise the graphic is invisible to the
-  preview timeline and the user cannot see or retime it.
-- Re-rendering Phase 1 without regenerating `segments.json`. Every Phase-2
-  overlay that must land on a cut is indexed off that file; stale, it is off by
-  frames and nothing errors. Worse, a `VIDEO_LAG`-style constant can absorb the
-  first frame of the drift and make a broken file look correct at the one
-  boundary you happen to check.
-- `timeline_view` on every boundary — run `verify_cut.py` and image ONLY the flags.
-- N single-frame images when one `contact_sheet.py` / `--candidates` montage answers it.
 - Setting cut edges from Whisper word times (drift/stretch/collapsed repeats) — use `speech_regions.py`.
 - Judging audio by the transcript. A perfect transcript says nothing about level: Whisper reads a whisper fine, the viewer does not. Run `voice_levels.py` on every source in Phase 1.
 - Rewriting a caption, or telling the user a sentence broke, on the strength of the source transcript's word times. Transcribe the isolated range first — a stretched word mis-attributes its neighbours and an under-level passage is usually a false start the speaker already re-took.
@@ -502,21 +397,14 @@ On startup, read it if it exists and summarize the last session in one sentence 
 - Cutting exactly at a word's offset (clips the sibilant) — leave the 50–80ms trail.
 - Committing a grade without the one-frame candidates montage + user pick.
 - Shipping a `cut.mp4` that is not tagged bt709/tv — Phase 2 will re-interpret it and the approved grade drifts.
-- Delivering Phase 2 with Remotion's own audio track — it drifts progressively against the source (+0.66s by 78s on a 95s edit). Re-mux `cut.mp4`'s audio and mix the soundtrack in ffmpeg (recipe in the track reference).
-- Judging A/V sync with short correlation windows — speech is quasi-periodic and a 2–3s window happily locks onto the wrong syllable, inventing a drift. Use 15s+ windows, and remember a PARTIAL render cannot show drift that accumulates over the full timeline.
-- Burning captions/overlays with ffmpeg/PIL — Phase 2 is Remotion-only.
-- Asking "NORMAL ou LOG?" — that is `detect_color.py`'s job now. Ask only on `confidence: low`.
 - Butt-joining the takes. The J-cut is the default; `--no-jcut` is a deliberate exception, not a shortcut.
 - Tightening a J-cut seam by raising the lead. That buys tightness by shoving the picture deeper into the incoming take's speech. Trim the outgoing TAIL instead.
 - A fixed tail trim. It must be bounded by the silence actually measured at that range's end, or it eventually cuts a word off.
 - `adelay` in milliseconds when placing overlapped audio, or `-shortest` on the mux. `adelay`'s integer-ms rounding leaves the mix a fraction short of the video and `-shortest` then amputates whole FRAMES of picture — and whether it bites depends on which way the numbers round, so it passes by luck until it doesn't. Delay in samples (`=NS`), and pin the length with `-t`.
-- Indexing Phase 2 off `Σ(end−start)` when a `jcut_timeline` exists — the J-cut output is shorter, so everything after the first take lands late.
-- Assuming the color profile without running the detector.
 - Re-transcribing cached sources; re-rendering Phase 1 when only Phase 2 changed.
 - Launching the preview without arming `watch_edits.py` in the same turn. This
   is the one failure mode where the user reasonably believes they handed you a
   decision and you never got it — the toast says saved, the file is written, and
   no one is reading it.
-- Building a per-session preview UI — launch the standard interface and feed it `state.json`. (Improving `assets/preview/` itself IS allowed when the user asks for a UI change; it is shared, so the improvement lands for every project.)
 - Applying `preview_edits.json` blindly — validate new edges against `speech_regions.py` first (flag clipped words to the user).
-- Assuming what kind of video it is. Look first, ask second, edit last.
+- Asking "NORMAL ou LOG?", or assuming the profile without running `detect_color.py`. It reads the answer off the file; ask only on `confidence: low`.

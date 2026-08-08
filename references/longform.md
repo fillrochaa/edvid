@@ -80,3 +80,29 @@ behind-the-subject, SFX) — longform ≠ Reel density. Verify with ONE
 `npx remotion render Longform out/render.mp4`, loudnorm → `edit/final.mp4`.
 
 Never edit `src/Main.tsx` — it's data-driven; the JSON is the edit.
+
+---
+
+## Anti-patterns (Fase 2/3)
+
+**Espelhados de `shortform.md` — mudou um, muda o outro.** Valem para os dois
+tracks; os que dependem da aba Estilo ficaram só no short-form, que é onde ela
+existe.
+
+- Hardcoding a bespoke graphic's timings inside `CustomGraphics.tsx`. Put the
+  windows in an `edit-data.json` array (a key the template ignores, e.g.
+  `splitInserts`) and map over it — otherwise the graphic is invisible to the
+  preview timeline and the user cannot see or retime it.
+- Re-rendering Phase 1 without regenerating `segments.json`. Every Phase-2
+  overlay that must land on a cut is indexed off that file; stale, it is off by
+  frames and nothing errors. Worse, a `VIDEO_LAG`-style constant can absorb the
+  first frame of the drift and make a broken file look correct at the one
+  boundary you happen to check.
+- Delivering Phase 2 with Remotion's own audio track — it drifts progressively against the source (+0.66s by 78s on a 95s edit). Re-mux `cut.mp4`'s audio and mix the soundtrack in ffmpeg (recipe in the track reference).
+- Judging A/V sync with short correlation windows — speech is quasi-periodic and a 2–3s window happily locks onto the wrong syllable, inventing a drift. Use 15s+ windows, and remember a PARTIAL render cannot show drift that accumulates over the full timeline.
+- Indexing Phase 2 off `Σ(end−start)` when a `jcut_timeline` exists — the J-cut output is shorter, so everything after the first take lands late.
+
+---
+
+## Helpers de Fase 2/3
+

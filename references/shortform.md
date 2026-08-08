@@ -513,3 +513,93 @@ ffmpeg -y -i out/render.mp4 -i ../cut.mp4 -filter_complex "[1:a]adelay=33:all=1,
 ```
 
 Verify `max_volume ≤ -1 dB` (`-af volumedetect`). Copy to `edit/final.mp4`.
+
+---
+
+## The Estilo tab (between Fase 1 and Fase 2)
+
+The cut is approved and nothing about the LOOK of Fase 2 is decided yet. **Do not
+ask the style questions in chat** — set `"awaitingStyle": true` in `state.json`
+and the UI opens its own tab, sitting between FASE 1 and FASE 2:
+
+- **Tipo de edição** — `limpa` ("Limpa": no split inserts, full frame throughout —
+  **the default**, and the right pick for a talking-head cut or when the user will
+  place images by hand later), `split` ("Tela dividida"), `split2` ("Tela
+  dividida 2").
+- **Cor de destaque** — `accent`, a hex. Sits BEFORE the text styles, because it
+  is what they paint with. One spectral swatch (the OS picker) plus a hex field,
+  synced both ways — no preset row. Only `realce`/`misto` headlines and the
+  `stacked` caption paint an accent, so the save also carries **`accentUsed`**;
+  when it is `false` the picked styles have none and the colour is not an
+  instruction to invent a place for one.
+- **Estilo de headline** — `outline`, `card`, `realce`, `misto`. Always two
+  lines, size fitted to the text (see the track reference).
+- **Estilo de legenda** — three animated (`karaoke`, `stacked`/"Empilhado",
+  `scatter`/"Disperso") and three static (`simples`, `serifada`, `classica`).
+- **Elementos da edição** — checkboxes: `tracking` (movimento de tracking),
+  `zoomAuto` (automação de zoom in), `zoomCuts` (zoom in/out nos cortes),
+  `flashCut` (flash na transição), `musicAI` (trilha sonora com IA), plus a
+  free-text observation field.
+
+Saving writes `<edit>/preview_style.json` (its OWN file — a style pick and a
+timeline correction are different screens at different moments, and one shared
+file would clobber the other) and `watch_edits.py` notifies you with the picks,
+**what was left out**, and the observation. Then: build Fase 2 from exactly those
+choices, **copy them into `state.json` as `style`**, clear `awaitingStyle`, and
+delete `preview_style.json`.
+
+Writing `style` back is not bookkeeping — it is what keeps the tab open. The tab
+is enabled while `awaitingStyle` OR `style` is set, so the user can return, change
+a caption style or tick one more element, and save again. That save arrives with
+`"rerender": true` and the watcher says **REFAÇA a Fase 2** — re-render with the
+new choices, don't treat it as a first pick.
+
+**The catalog lives in `STYLE_CATALOG` (app.js), not in a session.** A new editing
+or caption style is one entry there plus its implementation in the track
+reference; adding it in chat only, for one project, makes it invisible to every
+other project. What is in it today is the **short-form** vocabulary (tela
+dividida, karaokê/empilhado) — on a longform job the gate has nothing to offer
+yet, so skip `awaitingStyle` and ask the layer questions in chat until longform
+entries exist here.
+
+---
+
+## Anti-patterns (Fase 2/3)
+
+These moved out of SKILL.md: they only bite after the phase gate, and the
+skill prompt is resent every turn.
+
+- Asking the style questions in chat, or starting Phase 2 before the pick lands.
+  The gate screen exists so the user SEES what each style does — a chat list of
+  names asks them to choose blind. Set `awaitingStyle` and wait for
+  `preview_style.json`.
+- Treating an unchecked element as "não pediu". It is an explicit NO: the user
+  looked at "Movimento de tracking" and left it off. `watch_edits.py` prints the
+  `fora:` line for exactly this reason.
+- Hardcoding `#ff5200` (or any accent) in the template. The Estilo tab lets the
+  user pick it, so a literal makes the preview show their colour and the render
+  show orange — worse than not offering the choice. Feed `accent` into
+  `hook.accent` + `captions.accent`.
+- Changing a caption's look in the template without changing its preview in
+  `app.js` (`buildKaraokeDemo` / `buildStackedDemo`). The gate's previews render
+  the real faces, sizes and motion, scaled from 1080-wide — that is the whole
+  reason the user can choose by looking. A preview that lies about the style is
+  worse than no preview.
+- Hardcoding a bespoke graphic's timings inside `CustomGraphics.tsx`. Put the
+  windows in an `edit-data.json` array (a key the template ignores, e.g.
+  `splitInserts`) and map over it — otherwise the graphic is invisible to the
+  preview timeline and the user cannot see or retime it.
+- Re-rendering Phase 1 without regenerating `segments.json`. Every Phase-2
+  overlay that must land on a cut is indexed off that file; stale, it is off by
+  frames and nothing errors. Worse, a `VIDEO_LAG`-style constant can absorb the
+  first frame of the drift and make a broken file look correct at the one
+  boundary you happen to check.
+- Delivering Phase 2 with Remotion's own audio track — it drifts progressively against the source (+0.66s by 78s on a 95s edit). Re-mux `cut.mp4`'s audio and mix the soundtrack in ffmpeg (recipe in the track reference).
+- Judging A/V sync with short correlation windows — speech is quasi-periodic and a 2–3s window happily locks onto the wrong syllable, inventing a drift. Use 15s+ windows, and remember a PARTIAL render cannot show drift that accumulates over the full timeline.
+- Indexing Phase 2 off `Σ(end−start)` when a `jcut_timeline` exists — the J-cut output is shorter, so everything after the first take lands late.
+
+---
+
+## Helpers de Fase 2/3
+
+- **`captions_for_remotion.py`** (karaoke JSON) · **`face_track.py`** (eye-track JSON) · **`person_matte.py`** (RVM alpha matte; `uv sync --extra matting`) · **`pexels_search.py`** · **`wikimedia_images.py`** (no key, brands/people first choice) · **`google_images.py`** (fallback, mind rights) · **`captions_srt.py`** (longform .srt) · **`chapters.py`** (YouTube chapters) · **`treblo_music.py`** (AI soundtrack — pass a context-driven MUSICAL vibe: genre + instruments + tempo + mood, not SFX-y phrasing; auto-framed as a composed instrumental).

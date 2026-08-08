@@ -1,3 +1,17 @@
+/* Two structural constraints of the timeline gutter, learned the hard way.
+   These live here and not in SKILL.md: they matter to whoever EDITS this file,
+   not to an agent using the skill, and the skill prompt is resent every turn.
+
+   **Nothing in the ancestor chain of `.track-label` may have `overflow:hidden`** —
+   the gutter mask rides `position:sticky` there, and an overflow ancestor makes a
+   new scroll container and strands it. That rules out the usual max-height
+   accordion; the reveal animates the blocks instead.
+   **The panel's `pointerdown` must ignore the gutter.** It falls through to a
+   scrub branch that calls `setPointerCapture` on the panel, which retargets the
+   following click — a real click on a gutter control was swallowed entirely (while
+   a programmatic `.click()` worked, which is what makes it confusing to diagnose)
+   and the needle jumped to 0, since the gutter sits left of t=0.
+*/
 /* Edvid preview — interactive editing timeline.
  * IMMUTABLE app: everything per-session comes from /api/state (state.json,
  * edl.json) + /gen/* (waveform, thumbs) + /media/* (video, captions, edit-data).
