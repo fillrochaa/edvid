@@ -19,9 +19,12 @@ São **dois comandos**: um para os programas que a edvid usa, outro para a edvid
 
 ### 1. Os programas (uma vez na vida)
 
-São três: `uv` (gerenciador de pacotes Python), `ffmpeg` (corte e render) e
-`node` (Remotion, usado na Fase 2). Você **não** precisa instalar Python nem git
-— o `uv` cuida do Python, e o instalador baixa a skill sem usar git.
+- **`uv`** — gerenciador de pacotes Python. A edvid usa para tudo, e ele também
+  cuida de instalar o Python certo, então você não instala Python separado.
+- **`ffmpeg`** — corte, cor e render (Fase 1).
+- **`node`** — Remotion, usado nas legendas e gráficos (Fase 2).
+- **`git`** — a edvid não usa, mas o **Claude Code** usa. Se você vai rodar a
+  edvid dentro do Claude Code, instale; noutro agente, pode pular.
 
 **Windows** — abra o **PowerShell** (não o Prompt de Comando antigo) e rode uma
 linha por vez, para saber qual falhou se alguma falhar:
@@ -38,15 +41,19 @@ winget install Gyan.FFmpeg
 winget install OpenJS.NodeJS.LTS
 ```
 
+```powershell
+winget install Git.Git
+```
+
 **macOS** — abra o Terminal. Se você ainda não tem o Homebrew, o comando está em
 [brew.sh](https://brew.sh).
 
 ```bash
-brew install uv ffmpeg node
+brew install uv ffmpeg node git
 ```
 
-**Linux** — o `ffmpeg` e o `node` vêm do gerenciador da sua distro
-(`sudo apt install ffmpeg nodejs npm`), e o `uv` do instalador oficial:
+**Linux** — `ffmpeg`, `node` e `git` vêm do gerenciador da sua distro
+(`sudo apt install ffmpeg nodejs npm git`), e o `uv` do instalador oficial:
 `curl -LsSf https://astral.sh/uv/install.sh | sh`. O `node` do apt costuma ser
 antigo; confira com `node --version` que é 18 ou maior.
 
@@ -55,20 +62,20 @@ antigo; confira com `node --version` que é 18 ou maior.
 Isso não é opcional. Programas recém-instalados só aparecem numa janela nova —
 sem isso o próximo comando falha com *"não é reconhecido"*.
 
-Confira que os três responderam:
+Confira que todos responderam:
 
 ```powershell
-uv --version; ffmpeg -version | Select-Object -First 1; node --version
+uv --version; ffmpeg -version | Select-Object -First 1; node --version; git --version
 ```
 
 ```bash
-uv --version; ffmpeg -version | head -1; node --version
+uv --version; ffmpeg -version | head -1; node --version; git --version
 ```
 
 ### 3. Instale a edvid — um comando
 
 ```bash
-uvx --from https://github.com/fillrochaa/edvid/archive/refs/heads/main.tar.gz edvid-install
+uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/edvid_install.py
 ```
 
 O mesmo comando, sem alterar nada, no PowerShell do Windows, no Terminal do Mac
@@ -129,7 +136,7 @@ não são tocados.
 Rode o mesmo comando da instalação. Ele substitui a versão antiga pela nova.
 
 ```bash
-uvx --from https://github.com/fillrochaa/edvid/archive/refs/heads/main.tar.gz edvid-install
+uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/edvid_install.py
 ```
 
 ---
@@ -159,7 +166,7 @@ automaticamente.
 
 ## Problemas comuns
 
-**`uvx` ou `uv` não é reconhecido como comando** — você não reabriu o terminal
+**`uv` não é reconhecido como comando** — você não reabriu o terminal
 depois de instalar o `uv`. Feche essa janela, abra outra e tente de novo.
 
 **Uma janela pedindo para instalar as Ferramentas de Linha de Comando (macOS)**

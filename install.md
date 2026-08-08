@@ -11,7 +11,7 @@ editing, read `SKILL.md`. Always read `helpers/` — that's where the scripts li
 > **The user installs, you verify.** `README.md` gives them one command:
 >
 > ```
-> uvx --from https://github.com/fillrochaa/edvid/archive/refs/heads/main.tar.gz edvid-install
+> uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/edvid_install.py
 > ```
 >
 > That is the supported install and it is the user's action, not yours. If

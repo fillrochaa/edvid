@@ -1,13 +1,14 @@
 """One-command installer for the edvid skill.
 
-    uvx --from git+https://github.com/fillrochaa/edvid edvid-install
+    uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/edvid_install.py
 
-Or, once the package is on PyPI, the short form — no git involved at all:
+`uv run <url>` and not `uvx --from <package>`: uvx would resolve and install the
+whole edvid dependency tree — torch, pandas, numpy — merely to run a script that
+imports nothing but the stdlib. Measured: 2+ minutes and a from-source build of
+pandas, versus 0.4s for the script. Same reason this file stays stdlib-only.
 
-    uvx edvid-install
-
-This is the `npx create-video@latest` shape, with uvx in place of npx and PyPI
-in place of npm. What it buys over a README full of shell snippets:
+This is the `npx create-video@latest` shape. What it buys over a README full of
+shell snippets:
 
   - ONE command, byte-identical on macOS, Linux and Windows PowerShell. Every
     OS difference (home directory, path separators, no chmod, no symlinks) is
@@ -39,9 +40,9 @@ REPO = "fillrochaa/edvid"
 SKILL_NAME = "edvid"
 
 # Phase 2 needs Remotion domain knowledge, which lives in a SUBDIRECTORY of its
-# own repo (skills/remotion) — so it cannot be cloned into place and has always
-# been a second manual step. Installing it here is the difference between "one
-# command" and "one command plus a thing you'll forget". ~400 KB.
+# own repo — so it cannot be cloned into place and has always been a second
+# manual step. Installing it here is the difference between "one command" and
+# "one command plus a thing you'll forget".
 REMOTION_REPO = "remotion-dev/skills"
 REMOTION_NAME = "remotion-best-practices"
 # Upstream renamed and restructured this: `skills/remotion` became
@@ -151,13 +152,15 @@ def hint(tool: str) -> str:
     """The install command for this platform, not a generic one."""
     if sys.platform == "darwin":
         return {"uv": "brew install uv", "ffmpeg": "brew install ffmpeg",
-                "node": "brew install node"}[tool]
+                "node": "brew install node", "git": "brew install git"}[tool]
     if sys.platform == "win32":
         return {"uv": "winget install astral-sh.uv", "ffmpeg": "winget install Gyan.FFmpeg",
-                "node": "winget install OpenJS.NodeJS.LTS"}[tool]
+                "node": "winget install OpenJS.NodeJS.LTS",
+                "git": "winget install Git.Git"}[tool]
     return {"uv": "curl -LsSf https://astral.sh/uv/install.sh | sh",
             "ffmpeg": "sudo apt install ffmpeg  (ou o gerenciador da sua distro)",
-            "node": "sudo apt install nodejs npm  (precisa ser 18+)"}[tool]
+            "node": "sudo apt install nodejs npm  (precisa ser 18+)",
+            "git": "sudo apt install git"}[tool]
 
 
 def main() -> None:
@@ -214,6 +217,11 @@ def main() -> None:
         else:
             missing.append(tool)
             log(f"  x {tool:10} — {why}. Instale com: {hint(tool)}")
+    # git is not an edvid dependency — the install above used no git at all. But
+    # Claude Code leans on it, so its absence is worth a word rather than
+    # silence. Deliberately NOT added to `missing`: nothing here is blocked by it.
+    if not shutil.which("git"):
+        log(f"  · git        — a edvid não usa, mas o Claude Code sim. {hint('git')}")
 
     log()
     if missing:
