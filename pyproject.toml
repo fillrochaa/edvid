@@ -3,7 +3,10 @@ name = "edvid"
 version = "0.1.0"
 description = "Conversation-driven video editor skill for Claude Code"
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+# Capped below 3.14: torch publishes no cp314 wheels, which silently broke BOTH
+# torch-backed extras (matting, whisperx) for anyone whose uv picked 3.14. The
+# base install works fine on 3.14 — the cap exists so the extras stay installable.
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "requests",
     "pillow",
@@ -12,6 +15,12 @@ dependencies = [
     # opencv-python-headless 5.0.0.93 ships without CascadeClassifier and breaks
     # Haar detection — stay on the 4.10 line. Headless = no GUI/Qt deps.
     "opencv-python-headless==4.10.0.84",
+    # Transcription with forced alignment (transcribe.py). A BASE dependency on
+    # purpose: the skill must work with nothing to sign up for and no second
+    # thing to install. It pulls torch + faster-whisper (~2GB of wheels), and
+    # downloads a Whisper model plus a per-language wav2vec2 alignment model on
+    # first run. That weight is the price of a keyless install.
+    "whisperx",
 ]
 
 [project.optional-dependencies]
@@ -21,9 +30,15 @@ animations = ["manim"]
 # `uv sync --extra matting`. Base install stays light for users who don't need it.
 matting = ["torch", "torchvision"]
 
+# The one-command installer: `uvx --from git+<repo> edvid-install`, or plain
+# `uvx edvid-install` once this is on PyPI. Stdlib-only, so it runs before any
+# dependency exists — see edvid_install.py.
+[project.scripts]
+edvid-install = "edvid_install:main"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = []
+py-modules = ["edvid_install"]

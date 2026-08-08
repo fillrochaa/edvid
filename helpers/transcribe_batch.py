@@ -1,7 +1,11 @@
-"""Batch-transcribe every video in a directory with 4 parallel workers.
+"""Batch-transcribe every video in a directory.
 
-Walks <videos_dir> for common video extensions, runs Groq Whisper on
-each, writes transcripts to <videos_dir>/edit/transcripts/<name>.json.
+Walks <videos_dir> for common video extensions, transcribes each with WhisperX,
+writes transcripts to <videos_dir>/edit/transcripts/<name>.json.
+
+WhisperX is local, so it already saturates the machine on ONE file — this runs
+serially by default. --workers only helps the optional ElevenLabs cloud backend,
+which is I/O-bound.
 
 Cached per-file: any source that already has a transcript is skipped.
 
@@ -21,9 +25,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from transcribe import (
-    DEFAULT_MODEL,
-    LONG_SOURCE_SECONDS,
-    load_api_key,
+    WHISPERX_MODEL,
     load_elevenlabs_key,
     transcribe_one,
 )
@@ -49,7 +51,9 @@ def main() -> None:
         default=None,
         help="Edit output directory (default: <videos_dir>/edit)",
     )
-    ap.add_argument("--workers", type=int, default=4, help="Parallel workers (default: 4)")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="Parallel workers (default: 1). Only raise this for "
+                         "--backend elevenlabs; local transcription contends with itself.")
     ap.add_argument(
         "--language",
         type=str,
@@ -60,22 +64,22 @@ def main() -> None:
         "--num-speakers",
         type=int,
         default=None,
-        help="Accepted for compatibility but ignored (Groq Whisper does not diarize).",
+        help="Accepted for compatibility but ignored (no diarization).",
     )
     ap.add_argument(
         "--model",
         type=str,
-        default=DEFAULT_MODEL,
-        help=f"Groq transcription model (default: {DEFAULT_MODEL}).",
+        default=WHISPERX_MODEL,
+        help=f"Whisper model for WhisperX (default: {WHISPERX_MODEL}).",
     )
     ap.add_argument(
         "--backend",
         type=str,
         default="auto",
-        choices=["auto", "groq", "elevenlabs", "whispercpp"],
-        help=f"Transcription backend per file. 'auto' (default) uses ElevenLabs Scribe "
-             f"for sources longer than {LONG_SOURCE_SECONDS}s when ELEVENLABS_API_KEY is "
-             "set, else Groq. Force with 'groq', 'elevenlabs', or 'whispercpp' (local).",
+        choices=["auto", "whisperx", "elevenlabs"],
+        help="Transcription backend per file. 'auto' (default) is WhisperX: local, "
+             "no key, forced alignment. 'elevenlabs' is an optional cloud second "
+             "opinion and needs ELEVENLABS_API_KEY.",
     )
     args = ap.parse_args()
 
@@ -98,15 +102,13 @@ def main() -> None:
         print("nothing to do")
         return
 
-    # Local transcription must not require a cloud key.
-    api_key = "" if args.backend == "whispercpp" else load_api_key()
     elevenlabs_key = load_elevenlabs_key()
 
-    # The cloud backends are I/O-bound, so parallel workers are free throughput.
-    # whisper.cpp already saturates every core and the GPU on one file — running
-    # several at once only makes them contend and finish later.
-    if args.backend == "whispercpp" and args.workers != 1:
-        print("whisper.cpp runs one file at a time (local inference already uses every core)")
+    # WhisperX already saturates every core on one file — running several at
+    # once only makes them contend and finish later. The cloud backend is
+    # I/O-bound, so there parallel workers are free throughput.
+    if args.backend != "elevenlabs" and args.workers != 1:
+        print("WhisperX runs one file at a time (local inference already uses every core)")
         args.workers = 1
 
     print(f"transcribing {len(pending)} files with {args.workers} parallel workers")
@@ -119,7 +121,6 @@ def main() -> None:
                 transcribe_one,
                 video=v,
                 edit_dir=edit_dir,
-                api_key=api_key,
                 language=args.language,
                 num_speakers=args.num_speakers,
                 model=args.model,

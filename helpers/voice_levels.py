@@ -160,7 +160,7 @@ def load_words(video: Path, edit_dir: Path | None) -> list[dict]:
     words = data.get("words") or []
     out = []
     for w in words:
-        # Scribe/Groq emit 'spacing' tokens that span the gaps BETWEEN words.
+        # Transcripts carry 'spacing' tokens that span the gaps BETWEEN words.
         # Keeping them makes every phrase look contiguous and the whole file
         # collapses into one phrase — drop anything that is not a real word.
         if w.get("type", "word") != "word":
