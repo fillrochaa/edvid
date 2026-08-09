@@ -306,15 +306,17 @@ def main() -> None:
     if missing:
         log(f"Falta instalar: {', '.join(missing)}. Rode os comandos acima e"
             " depois este comando de novo.")
-    else:
-        log("Tudo pronto. Nenhuma chave de API é necessária — a transcrição roda local.")
+        return
+
+    log("Tudo pronto! Reinicie o Claude ou o ChatGPT e abra uma nova sessão no")
+    log("Codex do ChatGPT ou na aba Code do Claude chamando a Skill Edvid para")
+    log("iniciar uma edição.")
     log()
-    log("Reinicie o agente para ele enxergar a skill.")
-    log()
-    log("Como usar: abra seu agente DENTRO da pasta com seus vídeos e diga")
-    log('  "edita esses vídeos num Reels"')
-    log()
-    log("Atualizar depois: rode este mesmo comando novamente.")
+    # The one operational detail that cannot be dropped: the agent has to start
+    # in the footage folder. Opened anywhere else it has nothing to edit, and
+    # Hard Rule 9 puts every output next to the sources — so the wrong folder is
+    # a wrong session, not a recoverable mistake.
+    log("Abra a sessão DENTRO da pasta onde estão os seus vídeos.")
 
 
 if __name__ == "__main__":
