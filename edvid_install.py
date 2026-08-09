@@ -64,14 +64,23 @@ def log(msg: str = "") -> None:
 
 
 def detect_targets(explicit: str | None) -> list[tuple[str, Path]]:
-    """Where to install. An explicit --target wins; otherwise every agent whose
-    config directory already exists. Falling back to Claude Code is safe: it is
-    the common case, and an unused skills directory costs nothing.
+    """Where to install. An explicit --target wins.
+
+    Claude Code is ALWAYS a target, not a fallback. It is the documented home for
+    this skill, and its config directory does not necessarily exist yet — a fresh
+    install can have `~/.claude.json` and no `~/.claude/`. Gating on that
+    directory made the installer skip Claude Code entirely on a machine that also
+    had Codex: the "does any agent exist" test passed on Codex alone, so the
+    fallback never fired and the user was told everything was fine.
+
+    Other agents are added only when their config directory exists, so we don't
+    litter `~/.codex/skills` on a machine that has never run Codex.
     """
     if explicit:
         return [("(--target)", Path(explicit).expanduser())]
-    found = [(name, d) for name, d in AGENT_DIRS if d.parent.exists()]
-    return found or [AGENT_DIRS[0]]
+    targets = [AGENT_DIRS[0]]
+    targets += [(name, d) for name, d in AGENT_DIRS[1:] if d.parent.exists()]
+    return targets
 
 
 def fetch_repo(repo: str, ref: str, into: Path, label: str) -> Path | None:
@@ -200,7 +209,11 @@ def main() -> None:
             else:
                 log("  ! skill do Remotion não instalada (a Fase 1 não depende dela)")
 
-    have_uv = run_uv_sync(dests[0]) if dests else False
+    # Every destination needs its own .venv — helpers run as `uv run python …`
+    # from whichever copy the agent loaded. Syncing only the first one left the
+    # second agent with a skill that imports nothing. uv hardlinks from its
+    # global cache, so the extra copies are cheap.
+    have_uv = all(run_uv_sync(d) for d in dests) if dests else False
 
     log()
     log("verificação:")
@@ -223,12 +236,23 @@ def main() -> None:
     if not shutil.which("git"):
         log(f"  · git        — a edvid não usa, mas o Claude Code sim. {hint('git')}")
 
+    # Say where it landed, explicitly. The failure this replaces was silent: the
+    # installer reported success while having skipped the agent the user actually
+    # runs, and they only found out when the skill wasn't there.
+    log()
+    log("instalado em:")
+    for d in dests:
+        log(f"  {d}")
+        log(f"  {d.parent / REMOTION_NAME}")
+
     log()
     if missing:
         log(f"Falta instalar: {', '.join(missing)}. Rode os comandos acima e"
-            " depois `edvid-install` de novo (ou só `uv sync` na pasta da skill).")
+            " depois este comando de novo.")
     else:
         log("Tudo pronto. Nenhuma chave de API é necessária — a transcrição roda local.")
+    log()
+    log("Reinicie o agente para ele enxergar a skill.")
     log()
     log("Como usar: abra seu agente DENTRO da pasta com seus vídeos e diga")
     log('  "edita esses vídeos num Reels"')
