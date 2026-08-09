@@ -131,16 +131,53 @@ def install_into(src: Path, skills_dir: Path, force: bool,
         log("    Use --force para substituir, ou atualize com: git -C <dir> pull --ff-only")
         return dest
     skills_dir.mkdir(parents=True, exist_ok=True)
-    # Keep .env: it holds the user's optional API keys and is not ours to drop.
-    env = dest / ".env"
-    saved = env.read_bytes() if env.exists() else None
+
+    # Replace the old copy WITHOUT deleting `.venv` or `.env`.
+    #
+    # `.env` is the user's keys — not ours to drop. `.venv` is skipped for two
+    # reasons. It is the likeliest thing to be locked: on Windows, rmtree dies
+    # with WinError 32 if any file in the tree is open, and a running agent (or
+    # an antivirus mid-scan) holds the venv's DLLs — measured, that is exactly
+    # how a reinstall crashed. And deleting it threw away ~2 GB of torch on
+    # every update, so "re-run the same command to update" meant re-downloading
+    # the world; `uv sync` reconciles an existing venv in seconds instead.
+    KEEP = {".venv", ".env"}
     if dest.exists():
-        shutil.rmtree(dest)
-    shutil.copytree(src, dest)
-    if saved is not None:
-        (dest / ".env").write_bytes(saved)
-        log("    .env preservado")
+        for entry in dest.iterdir():
+            if entry.name in KEEP:
+                continue
+            try:
+                if entry.is_dir() and not entry.is_symlink():
+                    _rmtree(entry)
+                else:
+                    entry.unlink()
+            except OSError as e:
+                log(f"    ! não consegui remover {entry.name}: {e}")
+    # dirs_exist_ok so the surviving .venv/.env keep their place.
+    shutil.copytree(src, dest, dirs_exist_ok=True)
     return dest
+
+
+def _rmtree(path: Path) -> None:
+    """rmtree that clears the read-only bit and retries once.
+
+    Windows refuses to delete read-only files, and git checkouts and some
+    unpackers leave them behind. A lock (WinError 32) is a different failure and
+    still propagates — chmod cannot help there.
+
+    `onexc` is 3.12+; `onerror` is the 3.10/3.11 spelling and takes the same
+    three arguments in the same order, so one handler serves both.
+    """
+    def handler(func, p, exc):
+        try:
+            os.chmod(p, 0o700)
+            func(p)
+        except OSError:
+            raise
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=handler)
+    else:
+        shutil.rmtree(path, onerror=handler)
 
 
 def run_uv_sync(dest: Path) -> bool:
@@ -190,13 +227,22 @@ def main() -> None:
 
     targets = detect_targets(args.target)
     dests: list[Path] = []
+    failed: list[tuple[str, Exception]] = []
     with tempfile.TemporaryDirectory() as tmp:
         src = fetch_repo(REPO, args.ref, Path(tmp), "edvid")
         if src is None:
             sys.exit(1)
+        # One agent failing must not cost the others. A locked directory under
+        # ~/.codex used to abort the run AFTER Claude Code was already written,
+        # so the user got a traceback, no dependency install, no Remotion skill,
+        # and no idea that half of it had worked.
         for name, skills_dir in targets:
             log(f"  instalando para {name}: {skills_dir / SKILL_NAME}")
-            dests.append(install_into(src, skills_dir, args.force))
+            try:
+                dests.append(install_into(src, skills_dir, args.force))
+            except Exception as e:
+                failed.append((name, e))
+                log(f"  ! falhou para {name}: {e}")
 
         if not args.no_remotion:
             rsrc = fetch_repo(REMOTION_REPO, "main", Path(tmp), "remotion")
@@ -205,7 +251,10 @@ def main() -> None:
             if sub and sub.is_dir():
                 for _, skills_dir in targets:
                     log(f"  instalando skill do Remotion (Fase 2): {skills_dir / REMOTION_NAME}")
-                    install_into(sub, skills_dir, args.force, name=REMOTION_NAME)
+                    try:
+                        install_into(sub, skills_dir, args.force, name=REMOTION_NAME)
+                    except Exception as e:
+                        log(f"  ! Remotion falhou em {skills_dir}: {e}")
             else:
                 log("  ! skill do Remotion não instalada (a Fase 1 não depende dela)")
 
@@ -244,6 +293,14 @@ def main() -> None:
     for d in dests:
         log(f"  {d}")
         log(f"  {d.parent / REMOTION_NAME}")
+
+    if failed:
+        log()
+        log("NÃO instalado em:")
+        for name, e in failed:
+            log(f"  {name}: {e}")
+        log("  Se for 'já está sendo usado por outro processo', feche esse agente")
+        log("  e rode este comando de novo — o que já instalou permanece.")
 
     log()
     if missing:
