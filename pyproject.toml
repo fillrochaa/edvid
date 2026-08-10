@@ -21,6 +21,12 @@ dependencies = [
     # downloads a Whisper model plus a per-language wav2vec2 alignment model on
     # first run. That weight is the price of a keyless install.
     "whisperx",
+    # Editing from a URL (ingest_url.py). A dependency and not a system package
+    # on purpose: as an "optional" brew/winget install nobody had it, so the
+    # feature looked broken to anyone who pasted a link. In the venv it is always
+    # there, on every OS, and `uv run` puts .venv/bin first on PATH so the helper
+    # that shells out to `yt-dlp` finds it.
+    "yt-dlp",
 ]
 
 [project.optional-dependencies]

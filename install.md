@@ -91,23 +91,21 @@ If `uv` is missing: `brew install uv` (macOS), `winget install astral-sh.uv`
 (Windows), or the installer at https://docs.astral.sh/uv/. On Windows a
 `winget install` only reaches `$PATH` in a **new** PowerShell window.
 
-### ffmpeg (+ optional yt-dlp)
+### ffmpeg
 
 ```bash
 # macOS
 command -v ffmpeg >/dev/null || brew install ffmpeg
-command -v yt-dlp >/dev/null || brew install yt-dlp     # optional, URL sources only
 
 # Debian / Ubuntu
-# sudo apt-get update && sudo apt-get install -y ffmpeg && pip install yt-dlp
+# sudo apt-get update && sudo apt-get install -y ffmpeg
 # Arch
-# sudo pacman -S ffmpeg yt-dlp
+# sudo pacman -S ffmpeg
 ```
 
 ```powershell
 # Windows
 winget install Gyan.FFmpeg
-winget install yt-dlp.yt-dlp     # optional
 ```
 
 If a package manager needs sudo/admin, tell the user the exact command and wait.
@@ -166,10 +164,12 @@ Tell the user, in one short message:
 
 - Where the skill is installed.
 - That they should `cd` into their footage folder and start their agent there.
-- That a good first message is *"edit these into a launch video"* or
-  *"inventory these takes and propose a strategy."*
 - That all outputs land in `<videos_dir>/edit/` — the skill directory stays clean.
-- That **no API key is needed**, and the first transcription downloads models once.
+- That the first transcription downloads its models once.
+
+Do NOT propose a first prompt or an editing strategy. PHASE 1 opens by looking at
+the material and asking questions shaped by it; a suggestion invented at install
+time, before anything has been inspected, pre-empts that with a guess.
 
 ## Keeping the skill current
 
@@ -188,7 +188,8 @@ Tell the user, in one short message:
   window. A "command not found" right after a successful install is almost
   always this.
 - `ffmpeg` from static builds is fine. Any modern (≥4.x) build is enough.
-- `yt-dlp` is optional — install lazily the first time a URL source shows up.
+- `yt-dlp` is a Python dependency, not a system package. If a URL source fails
+  with "yt-dlp not on PATH", the venv is stale — `uv sync --directory <EDVID>`.
 - Node 18+ and `remotion-best-practices` are Phase-2 only. Phase 1 (cut + grade)
   works without them, so a user who only wants a clean cut can start immediately.
 - Remotion projects are scaffolded per-video by copying the skill's own template
