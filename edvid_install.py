@@ -120,16 +120,23 @@ def fetch_repo(repo: str, ref: str, into: Path, label: str) -> Path | None:
 
 
 def install_into(src: Path, skills_dir: Path, force: bool,
-                 name: str = SKILL_NAME) -> Path:
+                 name: str = SKILL_NAME) -> Path | None:
     """Copy a skill into an agent's skills directory, replacing any previous
     copy. Refuses to touch a git checkout — that is somebody's development
     clone, and silently overwriting uncommitted work is unforgivable.
+
+    Returns None when it skipped. That distinction is not cosmetic: this used to
+    return `dest` either way, so a skipped directory was listed under "instalado
+    em" and handed to uv sync. A user on the old layout re-ran the installer to
+    get a new version, was told everything was fine, and kept running the old
+    code — which is how a student ended up being asked for a Groq key months
+    after that backend was deleted.
     """
     dest = skills_dir / name
     if (dest / ".git").exists() and not force:
-        log(f"  ! {dest} é um clone git (instalação de desenvolvedor) — pulando.")
-        log("    Use --force para substituir, ou atualize com: git -C <dir> pull --ff-only")
-        return dest
+        log(f"  ! {dest}")
+        log(f"    é um clone git — NÃO foi atualizado.")
+        return None
     skills_dir.mkdir(parents=True, exist_ok=True)
 
     # Replace the old copy WITHOUT deleting `.venv` or `.env`.
@@ -228,6 +235,7 @@ def main() -> None:
     targets = detect_targets(args.target)
     dests: list[Path] = []
     failed: list[tuple[str, Exception]] = []
+    skipped: list[Path] = []
     with tempfile.TemporaryDirectory() as tmp:
         src = fetch_repo(REPO, args.ref, Path(tmp), "edvid")
         if src is None:
@@ -239,7 +247,11 @@ def main() -> None:
         for name, skills_dir in targets:
             log(f"  instalando para {name}: {skills_dir / SKILL_NAME}")
             try:
-                dests.append(install_into(src, skills_dir, args.force))
+                d = install_into(src, skills_dir, args.force)
+                if d is None:
+                    skipped.append(skills_dir / SKILL_NAME)
+                else:
+                    dests.append(d)
             except Exception as e:
                 failed.append((name, e))
                 log(f"  ! falhou para {name}: {e}")
@@ -262,7 +274,10 @@ def main() -> None:
     # from whichever copy the agent loaded. Syncing only the first one left the
     # second agent with a skill that imports nothing. uv hardlinks from its
     # global cache, so the extra copies are cheap.
-    have_uv = all(run_uv_sync(d) for d in dests) if dests else False
+    # `if dests else False` claimed uv was missing when there was simply nothing
+    # to sync — which is what a run that skipped every destination looks like.
+    # Fall back to asking the system.
+    have_uv = all(run_uv_sync(d) for d in dests) if dests else bool(shutil.which("uv"))
 
     log()
     log("verificação:")
@@ -294,6 +309,23 @@ def main() -> None:
         log(f"  {d}")
         log(f"  {d.parent / REMOTION_NAME}")
 
+    if skipped:
+        log()
+        log("=" * 68)
+        log("ATENÇÃO — estas pastas NÃO foram atualizadas:")
+        for d in skipped:
+            log(f"  {d}")
+        log("")
+        log("São clones git da instalação antiga (feita à mão, com symlink). O")
+        log("instalador não sobrescreve clone para não apagar trabalho de quem")
+        log("desenvolve a skill — mas se você é usuário, é isso que está te")
+        log("deixando com a versão velha.")
+        log("")
+        log("Rode de novo com --force para substituir pela versão publicada:")
+        log("  uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/"
+            "edvid_install.py --force")
+        log("=" * 68)
+
     if failed:
         log()
         log("NÃO instalado em:")
@@ -306,6 +338,10 @@ def main() -> None:
     if missing:
         log(f"Falta instalar: {', '.join(missing)}. Rode os comandos acima e"
             " depois este comando de novo.")
+        return
+
+    if skipped:
+        log("Instalação parcial — veja o aviso acima antes de usar.")
         return
 
     log("Tudo pronto! Reinicie o Claude ou o ChatGPT e abra uma nova sessão no")
