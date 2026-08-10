@@ -106,3 +106,20 @@ existe.
 
 ## Helpers de Fase 2/3
 
+---
+
+## Chaves opcionais (nunca pedidas na instalação)
+
+Nada aqui é necessário para instalar ou para a Fase 1. Peça UMA chave só no
+momento em que o recurso for de fato usado, explique para quê, e escreva em
+`.env` na raiz da skill — nunca em `<videos_dir>`. Se o usuário não quiser, siga
+pelo caminho sem chave e diga o que muda.
+
+| Chave | Recurso | Sem ela |
+|---|---|---|
+| `PEXELS_API_KEY` | imagens/vídeos ilustrativos | Wikimedia Commons cobre a maioria |
+| `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | marcas, pessoas e logos específicos | Wikimedia é o fallback |
+| `TREBLO_API_KEY` | trilha sonora composta por IA (Fase 3) | trilha só a partir de arquivo local |
+
+A instalação não menciona nenhuma delas de propósito: a edvid não precisa de
+chave para funcionar, e listar chaves no primeiro contato faz parecer que precisa.

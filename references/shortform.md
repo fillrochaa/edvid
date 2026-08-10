@@ -603,3 +603,21 @@ skill prompt is resent every turn.
 ## Helpers de Fase 2/3
 
 - **`captions_for_remotion.py`** (karaoke JSON) · **`face_track.py`** (eye-track JSON) · **`person_matte.py`** (RVM alpha matte; `uv sync --extra matting`) · **`pexels_search.py`** · **`wikimedia_images.py`** (no key, brands/people first choice) · **`google_images.py`** (fallback, mind rights) · **`captions_srt.py`** (longform .srt) · **`chapters.py`** (YouTube chapters) · **`treblo_music.py`** (AI soundtrack — pass a context-driven MUSICAL vibe: genre + instruments + tempo + mood, not SFX-y phrasing; auto-framed as a composed instrumental).
+
+---
+
+## Chaves opcionais (nunca pedidas na instalação)
+
+Nada aqui é necessário para instalar ou para a Fase 1. Peça UMA chave só no
+momento em que o recurso for de fato usado, explique para quê, e escreva em
+`.env` na raiz da skill — nunca em `<videos_dir>`. Se o usuário não quiser, siga
+pelo caminho sem chave e diga o que muda.
+
+| Chave | Recurso | Sem ela |
+|---|---|---|
+| `PEXELS_API_KEY` | imagens/vídeos ilustrativos | Wikimedia Commons cobre a maioria |
+| `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | marcas, pessoas e logos específicos | Wikimedia é o fallback |
+| `TREBLO_API_KEY` | trilha sonora composta por IA (Fase 3) | trilha só a partir de arquivo local |
+
+A instalação não menciona nenhuma delas de propósito: a edvid não precisa de
+chave para funcionar, e listar chaves no primeiro contato faz parecer que precisa.

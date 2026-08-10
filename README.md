@@ -88,28 +88,10 @@ Pronto. Não há passo 4.
 - Confere `ffmpeg` e `Node` no fim e, se você pulou o passo 1 ou esqueceu de
   reabrir o terminal, imprime o comando de instalação **da sua plataforma**.
 - Não encosta numa instalação de desenvolvedor (pasta com `.git`) sem `--force`,
-  e preserva seu `.env` se você já tinha um.
+  e preserva suas configurações se você já tinha a edvid instalada.
 
 Na primeira transcrição ele baixa os modelos do Whisper e de alinhamento
 (alguns GB). Depois disso ficam em cache e nunca mais baixam.
-
----
-
-## Chaves de API
-
-**Nenhuma é necessária.** A transcrição é local.
-
-Estas são opcionais, e o agente pede cada uma na primeira vez que o recurso for
-usado — você decide na hora:
-
-| Chave | Para quê |
-|---|---|
-| `PEXELS_API_KEY` | imagens e vídeos ilustrativos na Fase 2 |
-| `TREBLO_API_KEY` | trilha sonora gerada por IA na Fase 3 |
-| `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | imagens de marcas/pessoas específicas |
-
-Imagens funcionam sem chave via Wikimedia Commons, e trilha funciona com um
-arquivo de música local. Nada da Fase 2 ou 3 fica bloqueado por falta de chave.
 
 ---
 

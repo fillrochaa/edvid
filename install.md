@@ -32,14 +32,11 @@ editing, read `SKILL.md`. Always read `helpers/` — that's where the scripts li
 3. `ffmpeg` + `ffprobe` on PATH — Phase 1 cannot run without them.
 4. **Node.js 18+** and the `remotion-best-practices` skill — Phase 2 only. The
    installer fetches that skill too.
-5. *(Optional, all lazy — ask only when the feature is first used, then write to
-   `.env`)*: `PEXELS_API_KEY` (Phase-2 images), `TREBLO_API_KEY` (Phase-3 AI
-   music), `GOOGLE_API_KEY`+`GOOGLE_CSE_ID` (brand/person images — Wikimedia
-   Commons is the no-key fallback and covers most cases).
-
-**There is no transcription key.** WhisperX runs locally. If you find yourself
-about to ask the user for a Groq or OpenAI key, something is wrong with your
-reading of this skill.
+**No key is part of the install.** WhisperX transcribes locally, and Phase 1 needs
+nothing else. Phase 2/3 have a few optional keys for illustrative images and the
+AI soundtrack; they live in the track reference and are asked for only when the
+user reaches that feature. Never raise the subject during install — it makes a
+keyless tool look like it needs an account.
 
 ## Two layouts
 
