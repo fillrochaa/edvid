@@ -32,6 +32,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -240,11 +241,17 @@ class Handler(BaseHTTPRequestHandler):
     def _state(self) -> None:
         state_p = self.root / "state.json"
         state: dict = {}
-        if state_p.exists():
-            try:
+        try:
+            if state_p.exists():
                 state = json.loads(state_p.read_text())
-            except json.JSONDecodeError:
-                state = {"error": "state.json inválido"}
+        except json.JSONDecodeError:
+            state = {"error": "state.json inválido"}
+        except OSError as e:
+            # A read that is refused (macOS privacy, or a permission change made
+            # after startup) used to raise here and 500 the endpoint, which the
+            # UI shows as its ordinary waiting screen — indistinguishable from
+            # "the cut is not rendered yet". Say what happened instead.
+            state = {"error": f"sem permissão para ler state.json: {e}"}
         # attach small data files + mtimes so the UI hot-reloads on change
         mtimes: dict[str, float] = {}
         for key in ("video", "finalVideo", "edl", "captions", "editData"):
@@ -312,6 +319,55 @@ class Handler(BaseHTTPRequestHandler):
         pass  # quiet
 
 
+def _check_access(root: Path) -> None:
+    """Fail loudly, at startup, when the edit dir cannot be read or written.
+
+    Without this the failure is silent in the worst way: the server starts, the
+    UI opens on its waiting screen, and it waits forever for a state.json that
+    the skill was never allowed to write. The user sees a working preview with
+    no video and nothing to act on.
+
+    The errno is the diagnosis on macOS. Its privacy layer (TCC) guards
+    ~/Documents, ~/Desktop, ~/Downloads and iCloud Drive, and denies with
+    EPERM (1) "Operation not permitted" — an app the user never granted Files
+    and Folders access to gets that even though the file permissions are fine.
+    Ordinary permission or ownership problems come back as EACCES (13). The two
+    need completely different fixes, so do not merge the messages.
+    """
+    probe = root / ".edvid_write_probe"
+    err: OSError | None = None
+    try:
+        probe.write_text("ok")
+        probe.unlink()
+        for _ in root.iterdir():
+            break
+    except OSError as exc:
+        # Bind outside the handler: Python deletes the `except` name on exit.
+        err = exc
+    if err is None:
+        return
+
+    where = f"{root}"
+    if getattr(err, "errno", None) == 1 and sys.platform == "darwin":
+        raise SystemExit(
+            f"sem permissão para escrever em {where}\n"
+            "\n"
+            "No macOS isso é a proteção de privacidade do sistema, não a permissão\n"
+            "do arquivo: ~/Documents, ~/Desktop, ~/Downloads e o iCloud Drive são\n"
+            "protegidos, e o app precisa ser autorizado uma vez.\n"
+            "\n"
+            "  Ajustes do Sistema → Privacidade e Segurança → Arquivos e Pastas\n"
+            "  (ou Acesso Total ao Disco) → ligue para o Claude / o Terminal\n"
+            "\n"
+            "Depois feche e reabra o app. Se preferir não dar acesso, mova a pasta\n"
+            "dos vídeos para fora dessas três pastas — por exemplo ~/Videos."
+        )
+    raise SystemExit(
+        f"sem permissão para ler/escrever em {where}: {err}\n"
+        "Confira o dono e as permissões da pasta."
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Edvid preview interface server")
     ap.add_argument("--root", type=Path, required=True, help="the session <edit> dir")
@@ -321,6 +377,7 @@ def main() -> None:
     root = args.root.resolve()
     if not root.exists():
         raise SystemExit(f"edit dir not found: {root}")
+    _check_access(root)
     if not (APP_DIR / "index.html").exists():
         raise SystemExit(f"app not found at {APP_DIR}")
 

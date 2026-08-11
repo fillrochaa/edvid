@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -133,10 +134,35 @@ def install_into(src: Path, skills_dir: Path, force: bool,
     after that backend was deleted.
     """
     dest = skills_dir / name
-    if (dest / ".git").exists() and not force:
+
+    # NEVER write through a symlink, with or without --force.
+    #
+    # The old manual install told people to clone the repo and symlink it into
+    # the skills directory. Deleting the "destination" then reaches through the
+    # link and empties the real clone — which is how a maintainer lost .git and
+    # a directory of gitignored personal templates that had never been pushed
+    # anywhere. Replacing the LINK instead of its target would be just as wrong:
+    # it silently detaches a developer from their checkout.
+    if dest.is_symlink():
         log(f"  ! {dest}")
-        log(f"    é um clone git — NÃO foi atualizado.")
+        log(f"    é um link para {os.path.realpath(dest)} — NÃO foi tocado.")
+        log("    Atualize o clone com: git -C <caminho> pull --ff-only")
+        log("    Ou apague o link e rode de novo para instalar uma cópia normal.")
         return None
+
+    if (dest / ".git").exists():
+        if not force:
+            log(f"  ! {dest}")
+            log(f"    é um clone git — NÃO foi atualizado.")
+            return None
+        # --force over a real checkout: move it aside instead of deleting it.
+        # A clone holds work that exists nowhere else — uncommitted edits, and
+        # anything gitignored. Destroying that to save a copy is not a trade
+        # this installer gets to make on the user's behalf.
+        backup = dest.with_name(f"{name}.backup-{int(time.time())}")
+        dest.rename(backup)
+        log(f"    clone git movido para {backup.name} (nada foi apagado)")
+
     skills_dir.mkdir(parents=True, exist_ok=True)
 
     # Replace the old copy WITHOUT deleting `.venv` or `.env`.
@@ -148,7 +174,10 @@ def install_into(src: Path, skills_dir: Path, force: bool,
     # how a reinstall crashed. And deleting it threw away ~2 GB of torch on
     # every update, so "re-run the same command to update" meant re-downloading
     # the world; `uv sync` reconciles an existing venv in seconds instead.
-    KEEP = {".venv", ".env"}
+    # .git is here as a second line of defence: the branches above should mean
+    # we never iterate a checkout, but if one ever slips through, losing the
+    # repository is unrecoverable while losing a copied file is not.
+    KEEP = {".venv", ".env", ".git"}
     if dest.exists():
         for entry in dest.iterdir():
             if entry.name in KEEP:

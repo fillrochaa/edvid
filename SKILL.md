@@ -119,6 +119,13 @@ Every edit session gets the same interactive interface in the user's preview pan
 
    A preview save must always lead to an agent-visible action: Claude Code uses the persistent watcher; Codex uses the user's next task message as the notification boundary.
 
+**Preview aberto e vazio para sempre = permissão, não render.** On macOS the
+privacy layer guards `~/Documents`, `~/Desktop`, `~/Downloads` and iCloud Drive:
+an app that was never granted Files-and-Folders access gets `PermissionError
+[Errno 1] Operation not permitted` writing `state.json`, and the UI then waits
+on a file that will never appear. `preview_server.py` refuses to start on an
+unwritable root and prints the fix — read that output instead of re-rendering.
+
 **Keep state.json fresh** — bump `phase` and `message` at each milestone (cut rendered, cut approved, Phase 2 rendered…). The UI polls and hot-reloads by itself; waveform + filmstrip regenerate automatically when cut.mp4 changes.
 
 The timeline shows one track per KIND: markers, captions, video, audio (the mix),
