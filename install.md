@@ -24,8 +24,8 @@ editing, read `SKILL.md`. Always read `helpers/` — that's where the scripts li
 
 ## What the install consists of
 
-1. The skill directory itself — `~/.claude/skills/edvid` (or the Codex
-   equivalent). `edvid_install.py` puts it there; it needs no git on the user's
+1. The skill directory itself — `~/.claude/skills/edvid`, or the equivalent for
+   Codex (`~/.codex/skills`) or Antigravity (`~/.gemini/config/skills`). `edvid_install.py` puts it there; it needs no git on the user's
    machine because it unpacks a tarball.
 2. Python deps via `uv sync`, which includes **WhisperX** — transcription is a
    normal dependency, not an extra.

@@ -57,6 +57,12 @@ REMOTION_SUBDIRS = ("skills/remotion-best-practices", "skills/remotion")
 AGENT_DIRS: list[tuple[str, Path]] = [
     ("Claude Code", Path.home() / ".claude" / "skills"),
     ("Codex", Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "skills"),
+    # Antigravity / Gemini. Path taken from its own bundled documentation
+    # (builtin/skills/agy-customizations): skills live at `skills/<name>/SKILL.md`
+    # and the machine-local configuration root is `~/.gemini/config/`. Same
+    # frontmatter contract as Claude Code — name + description — and the same
+    # optional `references/` convention, so edvid installs there unchanged.
+    ("Antigravity (Gemini)", Path.home() / ".gemini" / "config" / "skills"),
 ]
 
 
