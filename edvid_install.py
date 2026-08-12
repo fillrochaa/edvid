@@ -56,13 +56,13 @@ REMOTION_SUBDIRS = ("skills/remotion-best-practices", "skills/remotion")
 # another one; the rest of the installer needs no change.
 AGENT_DIRS: list[tuple[str, Path]] = [
     ("Claude Code", Path.home() / ".claude" / "skills"),
-    ("Codex", Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "skills"),
+    ("ChatGPT Codex", Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "skills"),
     # Antigravity / Gemini. Path taken from its own bundled documentation
     # (builtin/skills/agy-customizations): skills live at `skills/<name>/SKILL.md`
     # and the machine-local configuration root is `~/.gemini/config/`. Same
     # frontmatter contract as Claude Code — name + description — and the same
     # optional `references/` convention, so edvid installs there unchanged.
-    ("Antigravity (Gemini)", Path.home() / ".gemini" / "config" / "skills"),
+    ("Google Gemini", Path.home() / ".gemini" / "config" / "skills"),
 ]
 
 
@@ -304,6 +304,10 @@ def main() -> None:
     dests: list[Path] = []
     failed: list[tuple[str, Exception]] = []
     skipped: list[tuple[Path, str]] = []   # (caminho, motivo)
+    instalados: list[str] = []             # nomes dos agentes que receberam
+    # 'atualização' vs 'primeira vez' tem de ser medido antes da cópia —
+    # depois dela todo destino tem um SKILL.md e a pergunta não existe mais.
+    ja_existia = any((d / SKILL_NAME / 'SKILL.md').exists() for _, d in targets)
     with tempfile.TemporaryDirectory() as tmp:
         src = fetch_repo(REPO, args.ref, Path(tmp), "edvid")
         if src is None:
@@ -324,6 +328,7 @@ def main() -> None:
                     skipped.append((dest, "link" if dest.is_symlink() else "clone"))
                 else:
                     dests.append(d)
+                    instalados.append(name)
             except Exception as e:
                 failed.append((name, e))
                 log(f"  ! falhou para {name}: {e}")
@@ -421,15 +426,28 @@ def main() -> None:
         log("Instalação parcial — veja o aviso acima antes de usar.")
         return
 
-    log("Tudo pronto! Reinicie o Claude ou o ChatGPT e abra uma nova sessão no")
-    log("Codex do ChatGPT ou na aba Code do Claude chamando a Skill Edvid para")
-    log("iniciar uma edição.")
-    log()
-    # The one operational detail that cannot be dropped: the agent has to start
-    # in the footage folder. Opened anywhere else it has nothing to edit, and
-    # Hard Rule 9 puts every output next to the sources — so the wrong folder is
-    # a wrong session, not a recoverable mistake.
-    log("Abra a sessão DENTRO da pasta onde estão os seus vídeos.")
+    # Name the agents it actually wrote to, not the three it supports. Telling
+    # someone to use the skill in Codex when they only run Claude Code sends
+    # them looking for something that is not there.
+    onde = instalados[0] if len(instalados) == 1 else \
+        ", ".join(instalados[:-1]) + " e " + instalados[-1]
+
+    if ja_existia:
+        log("Edvid atualizada! Você está na última versão disponibilizada por")
+        log("Fill Rocha.")
+        log()
+        log("Reinicie o agente para ele carregar a nova versão.")
+    else:
+        log(f"Tudo pronto! A Edvid está instalada e pronta para usar no {onde}.")
+        log()
+        log("Reinicie o agente e abra uma nova sessão chamando a Skill Edvid.")
+        log()
+        # The one operational detail that cannot be dropped: the session has to
+        # start in the footage folder. Opened anywhere else the agent has
+        # nothing to edit, and Hard Rule 9 puts every output next to the
+        # sources — so the wrong folder is a wrong session, not a recoverable
+        # mistake. Only said on a first install; by the second run they know.
+        log("Abra a sessão DENTRO da pasta onde estão os seus vídeos.")
 
 
 if __name__ == "__main__":
