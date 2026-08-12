@@ -80,9 +80,8 @@ Pronto. Não há passo 4.
 
 ### O que o instalador faz
 
-- Descobre sozinho qual agente você usa (Claude Code, Codex, Antigravity)
-  e instala nas
-  pastas de skills que existirem — sem você dizer qual.
+- Descobre sozinho qual agente você usa (Claude Code, Codex, Antigravity) e
+  instala nas pastas de skills que existirem — sem você dizer qual.
 - Baixa e instala a **skill do Remotion** também, que a Fase 2 precisa. Era o
   passo que todo mundo esquecia.
 - Instala as dependências Python, inclusive o WhisperX da transcrição.
@@ -149,8 +148,8 @@ depois de instalar o `uv`. Feche essa janela, abra outra e tente de novo.
 **Uma janela pedindo para instalar as Ferramentas de Linha de Comando (macOS)**
 — normal na primeira vez. Aceite, espere terminar e rode o comando de novo.
 
-**O agente não encontra a skill** — reinicie o agente. O
-instalador imprime onde instalou; confirme que a pasta está lá.
+**O agente não encontra a skill** — reinicie o agente. O instalador imprime
+onde instalou; confirme que a pasta está lá.
 
 **`ModuleNotFoundError` ao usar a skill** — as dependências não terminaram de
 instalar. Rode `uv sync --directory <pasta que o instalador imprimiu>`.
