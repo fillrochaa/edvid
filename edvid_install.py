@@ -303,7 +303,7 @@ def main() -> None:
     targets = detect_targets(args.target)
     dests: list[Path] = []
     failed: list[tuple[str, Exception]] = []
-    skipped: list[Path] = []
+    skipped: list[tuple[Path, str]] = []   # (caminho, motivo)
     with tempfile.TemporaryDirectory() as tmp:
         src = fetch_repo(REPO, args.ref, Path(tmp), "edvid")
         if src is None:
@@ -317,7 +317,11 @@ def main() -> None:
             try:
                 d = install_into(src, skills_dir, args.force)
                 if d is None:
-                    skipped.append(skills_dir / SKILL_NAME)
+                    dest = skills_dir / SKILL_NAME
+                    # Record WHY. The banner used to assume every skip was a
+                    # git clone and prescribe --force — advice that does nothing
+                    # for a symlink, which is never touched in either mode.
+                    skipped.append((dest, "link" if dest.is_symlink() else "clone"))
                 else:
                     dests.append(d)
             except Exception as e:
@@ -381,17 +385,22 @@ def main() -> None:
         log()
         log("=" * 68)
         log("ATENÇÃO — estas pastas NÃO foram atualizadas:")
-        for d in skipped:
+        for d, motivo in skipped:
             log(f"  {d}")
-        log("")
-        log("São clones git da instalação antiga (feita à mão, com symlink). O")
-        log("instalador não sobrescreve clone para não apagar trabalho de quem")
-        log("desenvolve a skill — mas se você é usuário, é isso que está te")
-        log("deixando com a versão velha.")
-        log("")
-        log("Rode de novo com --force para substituir pela versão publicada:")
-        log("  uv run https://raw.githubusercontent.com/fillrochaa/edvid/main/"
-            "edvid_install.py --force")
+            if motivo == "link":
+                alvo = os.path.realpath(d)
+                log(f"    É um link para {alvo}.")
+                log("    Instalação de desenvolvedor — o instalador nunca escreve")
+                log("    através de um link, para não apagar o seu clone.")
+                log(f"    Para atualizar:  git -C {alvo} pull --ff-only")
+                log("    Se você não desenvolve a skill, apague o link e rode de novo")
+                log("    para receber uma cópia normal.")
+            else:
+                log("    É um clone git. Um clone limpo é substituído pela versão")
+                log("    publicada; se tiver alterações suas, ele é guardado ao lado.")
+                log("    Rode de novo com --force:")
+                log("      uv run https://raw.githubusercontent.com/fillrochaa/edvid/"
+                    "main/edvid_install.py --force")
         log("=" * 68)
 
     if failed:
