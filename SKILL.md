@@ -109,7 +109,7 @@ Every edit session gets the same interactive interface in the user's preview pan
     "sourceDurations": {"C0000": 1038.5},
     "awaitingStyle": false,
     "style": {"edit": "split", "captions": "karaoke",
-              "elements": {"tracking": false, "zoomAuto": true, "zoomCuts": true, "musicAI": true}}}
+              "elements": {"tracking": false, "zoomAuto": true, "zoomCuts": true, "musicAI": false}}}
    ```
    (`captions`/`editData`/`finalVideo` only when they exist; the Fase-2 tab plays `finalVideo` — the render WITH captions/inserts — while Fase 1 plays the clean cut; `sourceDurations` lets the UI clamp take extensions; `awaitingStyle`/`style` drive the Estilo tab below.)
 2. Select the runtime adapter; never invoke another host's tools.

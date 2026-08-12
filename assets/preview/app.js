@@ -187,7 +187,12 @@ const STYLE_CATALOG = {
     {
       id: 'musicAI',
       name: 'Trilha sonora com IA',
-      def: true,
+      // OFF by default, unlike the other two defaults-on. Those are free; this
+      // is the only element in the catalog that needs an account. Pre-ticked, it
+      // walked every first-time user into a signup they never asked for, at the
+      // exact moment they expected a finished video. The checkbox is still right
+      // there and says what it does — that is discovery enough.
+      def: false,
       icon: '<svg viewBox="0 0 16 16"><path d="M12.6 1.6L6.9 3a.7.7 0 00-.55.68v5.6a2 2 0 101.35 1.9V5.9l4.4-1.05v2.9a2 2 0 101.35 1.9V2.3a.7.7 0 00-.85-.7z"/><path d="M2.4 2.2l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg>',
     },
   ],
