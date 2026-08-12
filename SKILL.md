@@ -125,6 +125,9 @@ an app that was never granted Files-and-Folders access gets `PermissionError
 [Errno 1] Operation not permitted` writing `state.json`, and the UI then waits
 on a file that will never appear. `preview_server.py` refuses to start on an
 unwritable root and prints the fix — read that output instead of re-rendering.
+**If the user says the permissions are already enabled, the answer is to restart
+the Mac**: the permission cache goes stale and shows the toggle on while still
+denying. Confirmed in production; nothing in Settings fixed it.
 
 **Keep state.json fresh** — bump `phase` and `message` at each milestone (cut rendered, cut approved, Phase 2 rendered…). The UI polls and hot-reloads by itself; waveform + filmstrip regenerate automatically when cut.mp4 changes.
 

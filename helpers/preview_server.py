@@ -359,8 +359,15 @@ def _check_access(root: Path) -> None:
             "  Ajustes do Sistema → Privacidade e Segurança → Arquivos e Pastas\n"
             "  (ou Acesso Total ao Disco) → ligue para o Claude / o Terminal\n"
             "\n"
-            "Depois feche e reabra o app. Se preferir não dar acesso, mova a pasta\n"
-            "dos vídeos para fora dessas três pastas — por exemplo ~/Videos."
+            "Depois feche e reabra o app.\n"
+            "\n"
+            "SE AS PERMISSÕES JÁ ESTIVEREM LIGADAS: reinicie o Mac. O cache de\n"
+            "permissões do macOS às vezes fica preso mostrando a chave ativa sem\n"
+            "conceder o acesso, e só o reinício resolve. (Visto em produção — foi\n"
+            "exatamente isso, e nenhuma mexida nos Ajustes tinha efeito.)\n"
+            "\n"
+            "Se preferir não lidar com permissão, mova a pasta dos vídeos para fora\n"
+            "dessas três pastas — por exemplo ~/Videos."
         )
     raise SystemExit(
         f"sem permissão para ler/escrever em {where}: {err}\n"
