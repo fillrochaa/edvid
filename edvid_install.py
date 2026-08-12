@@ -155,13 +155,21 @@ def install_into(src: Path, skills_dir: Path, force: bool,
             log(f"  ! {dest}")
             log(f"    é um clone git — NÃO foi atualizado.")
             return None
-        # --force over a real checkout: move it aside instead of deleting it.
-        # A clone holds work that exists nowhere else — uncommitted edits, and
-        # anything gitignored. Destroying that to save a copy is not a trade
-        # this installer gets to make on the user's behalf.
-        backup = dest.with_name(f"{name}.backup-{int(time.time())}")
-        dest.rename(backup)
-        log(f"    clone git movido para {backup.name} (nada foi apagado)")
+        # --force over a real checkout. A pristine clone — which is what the old
+        # manual install leaves on a user's machine — holds nothing that isn't on
+        # the remote, so replacing it outright is right and leaves no clutter
+        # behind. A DIRTY clone is the opposite: uncommitted edits and gitignored
+        # files exist nowhere else, and that is precisely what was destroyed once
+        # already. So ask git which one this is, and only keep a copy when the
+        # answer says something would be lost.
+        if _clone_is_pristine(dest):
+            _rmtree(dest)
+            log("    clone git limpo — substituído pela versão publicada")
+        else:
+            backup = dest.with_name(f"{name}.backup-{int(time.time())}")
+            dest.rename(backup)
+            log(f"    ! o clone tem alterações locais ou arquivos ignorados")
+            log(f"    guardado em {backup.name} — apague quando tiver conferido")
 
     skills_dir.mkdir(parents=True, exist_ok=True)
 
@@ -192,6 +200,31 @@ def install_into(src: Path, skills_dir: Path, force: bool,
     # dirs_exist_ok so the surviving .venv/.env keep their place.
     shutil.copytree(src, dest, dirs_exist_ok=True)
     return dest
+
+
+def _clone_is_pristine(repo: Path) -> bool:
+    """True when nothing in `repo` would be lost by deleting it.
+
+    `--ignored` is the load-bearing flag. Plain `git status --porcelain` calls a
+    checkout clean while `.venv/`, `.env` and a directory of gitignored personal
+    templates sit inside it — which is exactly the set that was destroyed once.
+
+    Anything unexpected (no git on PATH, not a repo, a timeout) returns False.
+    The cost of a wrong "pristine" is unrecoverable; the cost of a wrong "dirty"
+    is a folder the user deletes by hand.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain", "--ignored"],
+            capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if r.returncode != 0:
+        return False
+    # The venv and the key file are ours to carry across an install anyway.
+    leftovers = [ln for ln in r.stdout.splitlines()
+                 if ln.strip() and not ln[3:].startswith((".venv/", ".env", "edvid.egg-info/"))]
+    return not leftovers
 
 
 def _rmtree(path: Path) -> None:
