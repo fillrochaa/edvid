@@ -619,5 +619,23 @@ pelo caminho sem chave e diga o que muda.
 | `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | marcas, pessoas e logos específicos | Wikimedia é o fallback |
 | `TREBLO_API_KEY` | trilha sonora composta por IA (Fase 3) | trilha só a partir de arquivo local |
 
+### Como o usuário cria a chave do Treblo (trilha com IA)
+
+Quando ele escolher `musicAI` e não houver `TREBLO_API_KEY`, dite estes passos —
+são a interface real do site, não um resumo:
+
+1. Acessar **https://treblo.com/** e fazer login.
+2. Clicar no **perfil**, no canto superior direito.
+3. Abrir a seção **Developers**.
+4. Clicar em **Get Started for Free**.
+5. Clicar em **API Keys**.
+6. Clicar em **Create Key**, escrever o nome **Edvid** e confirmar em **Create**.
+7. Copiar a chave e colar na conversa.
+
+Ao receber a chave: escreva `TREBLO_API_KEY=<chave>` no `.env` da raiz da skill,
+confirme em uma linha que gravou, e **nunca repita a chave de volta** na conversa
+nem em saída de ferramenta. Se ele preferir não criar conta, siga com trilha de
+arquivo local — a Fase 3 funciona assim, só não compõe.
+
 A instalação não menciona nenhuma delas de propósito: a edvid não precisa de
 chave para funcionar, e listar chaves no primeiro contato faz parecer que precisa.

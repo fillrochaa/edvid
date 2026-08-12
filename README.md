@@ -140,6 +140,31 @@ automaticamente.
 
 ---
 
+## Trilha sonora com IA (opcional)
+
+A Fase 3 pode **compor** uma trilha sob medida para a sua edição, em vez de você
+procurar uma música pronta. Isso usa o Treblo, que é o único recurso da edvid com
+cadastro — e é opcional: sem ele a Fase 3 continua funcionando com um arquivo de
+música seu.
+
+Se quiser usar, crie a chave uma vez:
+
+1. Acesse **https://treblo.com/** e faça login.
+2. Clique no **perfil**, no canto superior direito.
+3. Abra a seção **Developers**.
+4. Clique em **Get Started for Free**.
+5. Clique em **API Keys**.
+6. Clique em **Create Key**, escreva o nome **Edvid** e confirme em **Create**.
+7. Copie a chave.
+
+Depois cole a chave na conversa com o agente e peça para ele guardar. Ele grava
+no lugar certo e não repete a chave de volta na tela.
+
+Você só precisa fazer isso **uma vez** — a chave fica salva e vale para todas as
+suas edições.
+
+---
+
 ## Problemas comuns
 
 **`uv` não é reconhecido como comando** — você não reabriu o terminal
