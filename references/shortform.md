@@ -17,9 +17,11 @@ approved. Everything here rides on the **data-driven template** at
   reveals an edge). `zoomCuts` is what makes a talking head feel edited — if the
   user turns everything off, say what they lose and build it anyway.
 - **Visual hook (first ~4s):** static copywriting headline, **always two lines**
-  with the size fitted to them (see "Headline styles"). Always on.
+  with the size fitted to them (see "Headline styles"). On by default, but the
+  Estilo tab offers "Nenhum" — respect it and set `hook.enabled: false`.
 - **Captions:** six styles — three animated (**karaoke**, **stacked**, **scatter**)
-  and three static (**simples**, **serifada**, **classica**). The user already
+  and three static (**simples**, **serifada**, **classica**) — plus "Nenhum",
+  which is `captions.enabled: false` and no caption generation at all. The user already
   picked one on the Estilo tab; see the "Caption style" section.
   Karaoke: one line ≤3 words, words rise from below, Poppins Black, lower third,
   `measureText` fit into **SAFE_WIDTH 720** (~180px each side — clears
@@ -47,7 +49,9 @@ the Estilo tab at the end of Fase 1; every key maps to something here:
 | `edit: "limpa"` | **the default** — NO split inserts, full frame throughout. See the "Limpa" section |
 | `edit: "split" \| "split2"` | the split-screen variant below — every image insert uses it |
 | `headline: "outline" \| "card" \| "realce" \| "misto"` | `hook.style` in edit-data.json |
+| `headline: "none"` | **no headline at all** — `hook.enabled: false`. The template already gates on that flag, so nothing else changes |
 | `captions: "karaoke" \| "stacked" \| "scatter" \| "simples" \| "serifada" \| "classica"` | `captions.style` in edit-data.json (+ the director step for stacked) |
+| `captions: "none"` | **no captions at all** — `captions.enabled: false`. Skip `captions_for_remotion.py` too; nothing reads the file |
 | `accent` (hex) | `hook.accent` + `captions.accent`. Only `realce`/`misto`/`stacked` paint it; `accentUsed:false` means the picked styles have none |
 | `elements.tracking` | `face_track.py` + `track.json`; OFF → skip it, fixed frame |
 | `elements.zoomAuto` | the slow push-in inside each segment (`+0.04/segment`) |

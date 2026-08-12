@@ -150,6 +150,9 @@ const STYLE_CATALOG = {
     {id: 'card', name: 'Cartão', hl: 'card'},
     {id: 'realce', name: 'Realce', hl: 'realce'},
     {id: 'misto', name: 'Misto', hl: 'misto'},
+    // Last on purpose: defaultStyle() takes headlines[0]. `hlbox` only so the
+    // card matches the height of its siblings in this row.
+    {id: 'none', name: 'Nenhum', none: true, hlbox: true},
   ],
   captions: [
     {id: 'karaoke', name: 'Karaokê', demo: 'karaoke'},
@@ -158,6 +161,7 @@ const STYLE_CATALOG = {
     {id: 'simples', name: 'Simples', stat: 'simples'},
     {id: 'serifada', name: 'Serifada', stat: 'serifada'},
     {id: 'classica', name: 'Clássica', stat: 'classica'},
+    {id: 'none', name: 'Nenhum', none: true},
   ],
   elements: [
     {
@@ -205,6 +209,15 @@ const STYLE_CATALOG = {
  * template's caption look changes, change it HERE too — a preview that lies
  * about the style is worse than no preview.
  */
+// The "Nenhum" preview. Deliberately not an empty box: an empty card reads as
+// "still loading" next to five that render real type. A struck-through frame
+// reads as a choice.
+const NONE_MARK = '<svg viewBox="0 0 64 34" style="width:64px;height:34px">'
+  + '<rect x="1" y="1" width="62" height="32" rx="5" fill="none" '
+  + 'stroke="rgba(255,255,255,.22)" stroke-width="1.5" stroke-dasharray="4 3"/>'
+  + '<path d="M14 24L50 10" stroke="rgba(255,255,255,.28)" stroke-width="1.5" '
+  + 'stroke-linecap="round"/></svg>';
+
 const CAP_TEXT = 'É assim que sua legenda irá aparecer';
 const FPS_REF = 30; // the template's reference fps for frame-based timings
 
@@ -1192,7 +1205,7 @@ function renderSetup() {
       card.dataset.id = o.id;
       // headline previews are two short lines — they do not need the caption
       // box's height, and with four groups on one screen that height is scarce
-      const kind = o.mock ? 'frame' : o.hl ? 'cap hlbox' : 'cap';
+      const kind = o.mock ? 'frame' : (o.hl || o.hlbox) ? 'cap hlbox' : 'cap';
       const prev = el('div', `opt-preview ${kind}`, card);
       if (o.demo) capAnims.push(CAP_BUILDERS[o.demo](prev));
       else if (o.hl) buildHeadlineDemo(prev, o.hl);
@@ -1200,10 +1213,11 @@ function renderSetup() {
         const step = buildStaticDemo(prev, o.stat);
         if (step) capAnims.push(step);
       }
+      else if (o.none) prev.innerHTML = NONE_MARK;
       else prev.innerHTML = o.mock || '';
       // Only the abstract mockups get a title. A card that renders the real
       // caption or the real headline is already labelled — by itself.
-      if (o.mock) el('div', 'opt-name', card).textContent = o.name;
+      if (o.mock || o.none) el('div', 'opt-name', card).textContent = o.name;
       el('div', 'opt-mark', card);
     }
     // the ghost only earns its space where there is a single option to explain
