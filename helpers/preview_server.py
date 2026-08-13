@@ -390,7 +390,7 @@ def main() -> None:
 
     Handler.root = root
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"Edvid preview → http://127.0.0.1:{args.port}  (root: {root})", flush=True)
+    print(f"Edvid preview -> http://127.0.0.1:{args.port}  (root: {root})", flush=True)
     srv.serve_forever()
 
 
