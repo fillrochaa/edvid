@@ -37,7 +37,7 @@ type Cue = {startMs: number; endMs: number; lines: Placed[][]; shift: number[]; 
 
 const C = (editData as any).captions ?? {};
 const SAFE_W = C.scatterSafeWidth ?? 820;
-const BASE = C.scatterFontSize ?? 72;
+const BASE = C.scatterFontSize ?? 58;
 const HI_SCALE = 1.62;
 const SPREAD = 0.45; // how far a line may wander off centre, 0..1 of the free room
 const WORD_GAP = 12;

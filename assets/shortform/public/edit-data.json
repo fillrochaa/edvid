@@ -18,11 +18,11 @@
     "lines": ["HEADLINE LINHA 1", "HEADLINE LINHA 2"],
     "logo": null,
     "sign": null,
-    "_outline_hint": "style:'outline' → texto branco + contorno preto grosso, sem card, sentence-case, mais pra baixo. Escreva lines[] normal (não CAPS), tire logo/sign, e ajuste: fontSizePx(68), strokePx(12), paddingTop(330), lineHeight(1.06)."
+    "_outline_hint": "style:'outline' → texto branco + contorno preto grosso, sem card, sentence-case, mais pra baixo. Escreva lines[] normal (não CAPS), tire logo/sign, e ajuste: fontSizePx(51), strokePx(7), paddingTop(330), lineHeight(1.06)."
   },
   "captions": {
     "enabled": true,
-    "fontSize": 76,
+    "fontSize": 61,
     "maxWords": 3,
     "safeWidth": 720,
     "paddingBottom": 420
@@ -32,6 +32,6 @@
   "soundtrack": {
     "enabled": false,
     "file": "trilha.mp3",
-    "volume": 0.12
+    "volume": 0.0445
   }
 }

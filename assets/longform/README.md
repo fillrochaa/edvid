@@ -34,7 +34,7 @@ Copy `cut.mp4` into `public/`, then write `public/edit-data.json`.
   "callouts": [                        // emphasis chip at a normalized x/y
     {"text": "2x mais rápido", "start": 33, "dur": 3, "x": 0.62, "y": 0.28}
   ],
-  "soundtrack": {"enabled": false, "file": "trilha.mp3", "volume": 0.1}
+  "soundtrack": {"enabled": false, "file": "trilha.mp3", "volume": 0.0445}
 }
 ```
 

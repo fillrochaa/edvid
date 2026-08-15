@@ -9,7 +9,7 @@
  *
  * The ONE editable file is CustomGraphics.tsx — bespoke motion graphics only.
  *
- * Audio: keep layers low (whoosh ~0.09, pop ~0.12, music ~0.12) and always run
+ * Audio: keep layers low (whoosh ~0.09, pop ~0.12, music ~0.0445) and always run
  * a final loudnorm pass on the render — voice + music + SFX summed will clip.
  */
 import {
@@ -85,7 +85,7 @@ export type EditData = {
     // SimpleCaptions.tsx and take no tunables — they ARE the tuning.
     style?: 'karaoke' | 'stacked' | 'scatter' | 'simples' | 'serifada' | 'classica';
     scatterOffsetY?: number;   // scatter: block centre, fraction of height
-    scatterFontSize?: number;  // scatter: ordinary word size (default 74)
+    scatterFontSize?: number;  // scatter: ordinary word size (default 58)
     scatterSafeWidth?: number; // scatter: layout width budget (default 940)
     stackedOffsetY?: number;
     fontScale?: number;
@@ -425,14 +425,14 @@ const Soundtrack: React.FC = () => {
 // and costs exactly that, so whatever comes in is re-broken into TWO balanced
 // lines and the size is fitted to the widest one. Author `hook.text` as a plain
 // sentence and let this do the breaking — hand-broken `lines` get rejoined.
-const HL_MIN = 40;
+const HL_MIN = 28;
 
 type HlStyle = {weights: [number, number]; cap: number; safeW: number; lh: number; top: number};
 const HL_STYLES: Record<string, HlStyle> = {
-  outline: {weights: [800, 800], cap: 92, safeW: 900, lh: 1.02, top: 330},
-  card: {weights: [900, 900], cap: 82, safeW: 820, lh: 1.06, top: 120},
-  realce: {weights: [900, 900], cap: 86, safeW: 830, lh: 1.04, top: 300},
-  misto: {weights: [400, 900], cap: 98, safeW: 900, lh: 0.98, top: 300},
+  outline: {weights: [800, 800], cap: 51, safeW: 900, lh: 1.02, top: 330},
+  card: {weights: [900, 900], cap: 46, safeW: 820, lh: 1.06, top: 120},
+  realce: {weights: [900, 900], cap: 48, safeW: 830, lh: 1.04, top: 300},
+  misto: {weights: [400, 900], cap: 55, safeW: 900, lh: 0.98, top: 300},
 };
 
 const hlWidth = (text: string, size: number, weight: number) =>
@@ -560,7 +560,7 @@ const HookInner: React.FC<{totalFrames: number}> = ({totalFrames}) => {
     );
   }
 
-  const stroke = H.strokePx ?? 12;
+  const stroke = H.strokePx ?? 7;
   return (
     <AbsoluteFill style={{justifyContent: 'flex-start', alignItems: 'center', paddingTop: top}}>
       <Sfx src="whoosh.mp3" volume={0.1} />

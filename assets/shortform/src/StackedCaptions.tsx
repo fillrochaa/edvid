@@ -69,7 +69,7 @@ type SfxCfg = {enabled?: boolean; clickVolume?: number; scratchVolume?: number};
 type CapCfg = {stackedOffsetY?: number; fontScale?: number; sfx?: SfxCfg};
 const CAP = ((editData as {captions?: CapCfg}).captions ?? {}) as CapCfg;
 const OFFSET_Y = CAP.stackedOffsetY ?? 0.156; // fraction of height, below center
-const FONT_SCALE = CAP.fontScale ?? 1;
+const FONT_SCALE = CAP.fontScale ?? 0.8;
 const SFX = CAP.sfx ?? {};
 const SFX_ON = SFX.enabled !== false;
 const CLICK_VOL = SFX.clickVolume ?? 0.45;

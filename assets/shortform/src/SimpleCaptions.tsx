@@ -48,7 +48,7 @@ export const SIMPLE_VARIANTS: Record<string, Variant> = {
   simples: {
     family: POPPINS,
     weight: 600,
-    size: 82,
+    size: 66,
     maxWords: 3,
     lines: 1,
     squeeze: 0.9,
@@ -60,7 +60,7 @@ export const SIMPLE_VARIANTS: Record<string, Variant> = {
   serifada: {
     family: BASKERVILLE,
     weight: 700,
-    size: 84,
+    size: 67,
     maxWords: 3,
     lines: 1,
     squeeze: 1,
@@ -72,7 +72,7 @@ export const SIMPLE_VARIANTS: Record<string, Variant> = {
   classica: {
     family: INTER,
     weight: 500,
-    size: 52,
+    size: 42,
     maxWords: 14,
     lines: 2,
     squeeze: 1,

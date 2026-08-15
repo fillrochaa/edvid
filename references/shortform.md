@@ -33,7 +33,7 @@ approved. Everything here rides on the **data-driven template** at
   for "roteiro" — worked examples in `src/CustomGraphics.tsx`).
 - **Zones:** inserts/graphics upper third, captions lower third, face clear.
   Minimalist; accent `#33e0a3`.
-- **Audio:** whoosh ~0.09 on card entrances, pop ~0.12 on shapes, music ~0.12,
+- **Audio:** whoosh ~0.09 on card entrances, pop ~0.12 on shapes, music ~0.0445,
   and ALWAYS a final loudnorm pass (voice+music+SFX summed will clip). The
   shared sfx pack (`public/sfx/`) also ships `click1`/`click2` (element pops) and
   `tictac` (clocks/countdowns) — trigger any at a local frame by wrapping
@@ -208,12 +208,12 @@ the previous one. All three static ones live in `SimpleCaptions.tsx`, read
 alone and the short ones ride together. A fixed 3-words-per-line gets this
 backwards on every long word.
 
-- `simples` — Poppins 600 at 82, squeezed to 0.9 on BOTH axes, one line, ≤3 words.
+- `simples` — Poppins 600 at 66, squeezed to 0.9 on BOTH axes, one line, ≤3 words.
   Poppins ships no condensed cut, so this is a distorted regular: it thins the
   stems in both directions. If it ever reads too light, raise the weight to 700
   rather than compressing further.
-- `serifada` — Libre Baskerville 700 at 84, same rules, no distortion.
-- `classica` — Inter 500 at 52, TWO lines, classic subtitle. The split is width
+- `serifada` — Libre Baskerville 700 at 67, same rules, no distortion.
+- `classica` — Inter 500 at 42, TWO lines, classic subtitle. The split is width
   balance PLUS a penalty for ending a line on a short function word ("o", "de"),
   which a pure balance does constantly and no real subtitle ever does.
 - **The horizontal squeeze changes the line grouping** (narrower glyphs → more
@@ -235,7 +235,7 @@ still there as a montage over real footage if a still is useful.)
   `captions.json` alone — no extra generation step. Ordinary words FADE only; one
   word per cue (the longest, ≥7 chars) resolves out of a heavy blur at 1.62× and
   dissolves back into blur on the way out. Tunables in `captions`:
-  `scatterOffsetY` (block centre, default 0.72), `scatterFontSize` (72),
+  `scatterOffsetY` (block centre, default 0.72), `scatterFontSize` (58),
   `scatterSafeWidth` (820); `SPREAD` in the component caps how far a line wanders.
   Three things it took real footage to learn:
   - **Never `Math.random()`.** Remotion renders frames independently, so a true
@@ -296,8 +296,8 @@ template):
 - **`"outline"`**: white text + thick black stroke (`WebkitTextStroke` +
   `paintOrder:'stroke fill'`), **no card**, **sentence-case** (write `lines[]`
   normally, not caps), sits lower (`paddingTop` ~330 — may overlap the top of the
-  head, which is fine). The TikTok/MrBeast headline look. Tune `fontSizePx` (68),
-  `strokePx` (12), `paddingTop` (330), `lineHeight` (1.06). Drop logo/sign.
+  head, which is fine). The TikTok/MrBeast headline look. Tune `fontSizePx` (51),
+  `strokePx` (7), `paddingTop` (330), `lineHeight` (1.06). Drop logo/sign.
 
 Both are static hold, fade+rise at the edges, soft whoosh.
 
@@ -445,10 +445,11 @@ to read musical.
 ```bash
 uv run python helpers/treblo_music.py "upbeat modern electronic, catchy synth melody, warm analog bass, crisp light drums, ~110 BPM, bright and motivational" -o public/trilha.mp3 --length-min 30 --length-max 60
 ```
-Then flip `soundtrack.enabled: true` in edit-data.json. **Volume:** start ~0.25
-and check it's clearly audible under wall-to-wall narration (a bed at 0.12 is
-usually inaudible once the mix is loudnorm'd to the voice — confirm by listening,
-not just by the meter). Re-render. Finish with the mandatory loudnorm:
+Then flip `soundtrack.enabled: true` in edit-data.json. **Volume:** start at
+`0.0445`. This is the approved reference level: **−15 dB** from the former
+`0.25` default (`0.25 × 10^(−15/20) ≈ 0.0445`). Confirm by listening, not just
+by the meter, and only deviate when the source voice or composition clearly
+demands it. Re-render. Finish with the mandatory loudnorm:
 
 **Take the PICTURE from Remotion and the AUDIO from `cut.mp4`.** Remotion's own
 audio track drifts against the source — measured on a 95s edit: the voice is
@@ -473,7 +474,7 @@ ffmpeg -y -i out/render.mp4 -i ../cut.mp4 -i public/trilha.mp3 \
   -filter_complex "[0:v]scale=in_range=full:out_range=limited,format=yuv420p,\
 setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[vid];\
                    [1:a]adelay=33:all=1[v];\
-                   [2:a]volume=0.10,afade=t=in:st=0:d=0.4,afade=t=out:st=$FADE:d=1.5[m];\
+                   [2:a]volume=0.0445,afade=t=in:st=0:d=0.4,afade=t=out:st=$FADE:d=1.5[m];\
                    [v][m]amix=inputs=2:duration=first:normalize=0[mix];\
                    [mix]loudnorm=I=-14:TP=-1:LRA=11[out]" \
   -map "[vid]" -map "[out]" -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p \

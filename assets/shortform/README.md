@@ -49,11 +49,11 @@ Then copy `cut.mp4` into `public/` and generate the data files below.
     "sign": "brand/warning.webp"     // card only: transparent symbol or null
     // "outline" style — white text + thick black stroke, no card, sentence-case,
     // sits lower (may overlap top of head). Write lines[] in sentence case, drop
-    // logo/sign, and tune: "fontSizePx": 68, "strokePx": 12, "paddingTop": 330,
+    // logo/sign, and tune: "fontSizePx": 51, "strokePx": 7, "paddingTop": 330,
     // "lineHeight": 1.06
   },
   "captions": {                      // karaoke, ≤3 words, Poppins Black
-    "enabled": true, "fontSize": 76, "maxWords": 3,
+    "enabled": true, "fontSize": 61, "maxWords": 3,
     "safeWidth": 720,                // clears the platform action rail — keep 720
     "paddingBottom": 420,
     // optional: ranges where the caption sits elsewhere (split screen parks it
@@ -62,7 +62,7 @@ Then copy `cut.mp4` into `public/` and generate the data files below.
     "style": "karaoke"               // "karaoke" (default) | "stacked" (see below)
     // when "stacked": run caption_style.py → public/caption-cues.json, then the
     // stacked style renders (multi-font stack + pencil outline + click/scratch).
-    // optional stacked overrides: "stackedOffsetY": 0.156, "fontScale": 1,
+    // optional stacked overrides: "stackedOffsetY": 0.156, "fontScale": 0.8,
     // "sfx": {"enabled": true, "clickVolume": 0.45, "scratchVolume": 0.16}
   },
   "inserts": [                       // rounded-card images, upper zone
@@ -76,7 +76,7 @@ Then copy `cut.mp4` into `public/` and generate the data files below.
   "splitInserts": [                  // STYLE "tela dividida" — see below
     {"src": "brand/logo.jpg", "start": 11.64, "end": 14.73, "fit": "cover", "bandH": 750}
   ],
-  "soundtrack": {"enabled": false, "file": "trilha.mp3", "volume": 0.12}
+  "soundtrack": {"enabled": false, "file": "trilha.mp3", "volume": 0.0445}
   // Phase 3 flips soundtrack.enabled to true once trilha.mp3 exists
 }
 ```
@@ -102,7 +102,8 @@ Then copy `cut.mp4` into `public/` and generate the data files below.
 - **Inserts**: rounded card + shadow, upper zone, slow Ken-Burns, whoosh on entry.
 - **Behind-the-subject**: elements top-anchored; matte gets the same camera via
   `frameOffset`; ProRes 4444 + `<OffthreadVideo transparent>`.
-- **Audio**: whoosh ~0.09 / pop ~0.12 / music ~0.12, and ALWAYS a final loudnorm
+- **Audio**: whoosh ~0.09 / pop ~0.12 / music ~0.0445 (−15 dB from the former
+  0.25 reference), and ALWAYS a final loudnorm
   pass on the render (voice+music+SFX clip otherwise).
 
 ## Render

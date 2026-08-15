@@ -261,7 +261,7 @@ function buildKaraokeDemo(host) {
   let t = 0;
   for (const ln of lines) {
     const box = el('div', 'kar-line', wrap);
-    box.style.fontSize = `${76 * s}px`;
+    box.style.fontSize = `${61 * s}px`;
     const spans = ln.map((w) => {
       const sp = el('span', '', box);
       sp.textContent = w;
@@ -310,7 +310,7 @@ function buildStackedDemo(host) {
   let idx = 0;
   for (const L of STK_LINES) {
     const row = el('div', 'stk-line', cue);
-    let size = 86;
+    let size = 69;
     if (L.style === 1) size = Math.round(size * 0.72);
     if (L.style === 2) size = Math.round(size * 0.95);
     row.style.fontSize = `${size * s}px`;
@@ -351,12 +351,12 @@ function buildStackedDemo(host) {
  * HL_STYLES exists on both sides; change one, change the other.
  */
 const HEADLINE_TEXT = 'É assim que vai ficar a sua headline';
-const HL_MIN = 40;
+const HL_MIN = 28;
 const HL_STYLES = {
-  outline: { weights: [800, 800], cap: 92, safeW: 900, lh: 1.02 },
-  card: { weights: [900, 900], cap: 82, safeW: 820, lh: 1.06 },
-  realce: { weights: [900, 900], cap: 86, safeW: 830, lh: 1.04 },
-  misto: { weights: [400, 900], cap: 98, safeW: 900, lh: 0.98 },
+  outline: { weights: [800, 800], cap: 51, safeW: 900, lh: 1.02 },
+  card: { weights: [900, 900], cap: 46, safeW: 820, lh: 1.06 },
+  realce: { weights: [900, 900], cap: 48, safeW: 830, lh: 1.04 },
+  misto: { weights: [400, 900], cap: 55, safeW: 900, lh: 0.98 },
 };
 
 // Measured in RENDER units (1080-wide), scaled to the box only at the end — the
@@ -432,7 +432,7 @@ function buildHeadlineDemo(host, styleId) {
     box.style.padding = `${28 * s}px ${46 * s}px`;
   }
   if (styleId === 'outline') {
-    box.style.webkitTextStroke = `${12 * s}px #000`;
+    box.style.webkitTextStroke = `${7 * s}px #000`;
   }
   lines.forEach((l, i) => {
     if (!l) return;
@@ -450,7 +450,7 @@ function buildHeadlineDemo(host, styleId) {
 // slight darkening toward the baseline. Ordinary words FADE only — no movement;
 // the one highlighted word resolves out of a blur and dissolves back into it.
 // Mirrors ScatterCaptions.tsx: same line rules, same SPREAD, same hash.
-const SCAT = { base: 72, hiScale: 1.62, gap: 12, spread: 0.45, safeW: 820 };
+const SCAT = { base: 58, hiScale: 1.62, gap: 12, spread: 0.45, safeW: 820 };
 const scatHash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 function buildScatterDemo(host) {
@@ -521,9 +521,9 @@ function buildScatterDemo(host) {
  * word ends up alone and short ones ride together.
  */
 const STATIC_VARIANTS = {
-  simples: {family: "'Poppins',sans-serif", weight: 600, size: 82, maxWords: 3, lines: 1, sx: 0.9, sy: 0.9, tracking: -3, maxW: 860},
-  serifada: {family: "'Libre Baskerville',serif", weight: 700, size: 84, maxWords: 3, lines: 1, sx: 1, sy: 1, tracking: -1, maxW: 860},
-  classica: {family: "'Inter',sans-serif", weight: 500, size: 52, maxWords: 14, lines: 2, sx: 1, sy: 1, tracking: 0, maxW: 840},
+  simples: {family: "'Poppins',sans-serif", weight: 600, size: 66, maxWords: 3, lines: 1, sx: 0.9, sy: 0.9, tracking: -3, maxW: 860},
+  serifada: {family: "'Libre Baskerville',serif", weight: 700, size: 67, maxWords: 3, lines: 1, sx: 1, sy: 1, tracking: -1, maxW: 860},
+  classica: {family: "'Inter',sans-serif", weight: 500, size: 42, maxWords: 14, lines: 2, sx: 1, sy: 1, tracking: 0, maxW: 840},
 };
 const ORPHAN_PT = /^(o|a|os|as|e|é|de|do|da|em|no|na|um|uma|que|se|ao|à|por|com)$/i;
 
