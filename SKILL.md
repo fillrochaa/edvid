@@ -95,6 +95,7 @@ the track reference you load after the gate.
 
 Interface:
 - **`preview_server.py --root <edit> [--port 4820]`** — serves the standard preview interface (see the Preview interface section). App code lives at `assets/preview/` and is IMMUTABLE.
+- **`start_preview.py --root <edit> [--port 4820]`** — starts the same server as a detached UTF-8 process and writes `preview-server.log` / `preview-server.err.log` in the edit directory. Prefer it on Windows and whenever the host cannot keep a foreground command alive.
 
 ## Preview interface (standard — launch it at the start of every edit)
 
@@ -115,7 +116,7 @@ Every edit session gets the same interactive interface in the user's preview pan
 2. Select the runtime adapter; never invoke another host's tools.
 
    - **Claude Code:** ensure `.claude/launch.json` has the config (adjust `--root` per session). The server takes the port by flag only, so pass the harness-assigned `$PORT` and set `autoPort`: `{"name": "edvid-preview", "runtimeExecutable": "sh", "runtimeArgs": ["-c", "exec python3 <skill>/helpers/preview_server.py --root '<edit>' --port \"$PORT\""], "autoPort": true, "port": 4820}`. Run `preview_start` with name `edvid-preview`, then arm `Monitor(command="python3 <skill>/helpers/watch_edits.py '<edit>'", description="escolhas e marcações salvas no preview", persistent=true)` **in the same turn**.
-   - **Codex desktop / CLI:** start `uv run python helpers/preview_server.py --root '<edit>' --port 4820` as a background local process when the environment can keep it alive. Once it responds, use the `control-in-app-browser` skill to open `http://127.0.0.1:4820` in the in-app Browser automatically and leave that tab on the preview. Do not assume `preview_start`, `Monitor`, or `.claude/launch.json` exists. If the Browser capability or a persistent local process is unavailable, give the user the command and local URL instead. After showing the preview, tell the user to save and reply in this task. On every subsequent user message, before any other work, check for `preview_edits.json` and `preview_style.json`; read, validate, apply, then remove only `preview_edits.json`.
+   - **Codex desktop / CLI:** start `uv run python -X utf8 helpers/start_preview.py --root '<edit>' --port 4820`. It detaches safely on Windows and Unix, preserves paths with spaces/non-ASCII characters, and leaves logs in the edit directory. Once it responds, use the `control-in-app-browser` skill to open `http://127.0.0.1:4820` in the in-app Browser automatically and leave that tab on the preview. Do not assume `preview_start`, `Monitor`, or `.claude/launch.json` exists. If the Browser capability or a persistent local process is unavailable, give the user the command and local URL instead. After showing the preview, tell the user to save and reply in this task. On every subsequent user message, before any other work, check for `preview_edits.json` and `preview_style.json`; read, validate, apply, then remove only `preview_edits.json`.
 
    A preview save must always lead to an agent-visible action: Claude Code uses the persistent watcher; Codex uses the user's next task message as the notification boundary.
 
