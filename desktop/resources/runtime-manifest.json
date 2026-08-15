@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "runtimes": {
+    "node": { "version": "26.7.0", "distribution": "nodejs.org" },
+    "npm": { "version": "11.19.0", "distribution": "included-with-node" },
+    "ffmpeg": { "version": "8.1.2", "distribution": "source-build-gpl-libx264" },
+    "ffprobe": { "version": "8.1.2", "distribution": "source-build-gpl-libx264" },
+    "uv": {
+      "version": "0.12.3",
+      "distribution": "astral-github-release-attested",
+      "sourceCommit": "507230998c9541d67814b57463ac00e454ff6991"
+    },
+    "yt-dlp": {
+      "version": "2026.07.04",
+      "distribution": "github-release-gpg-signed-checksums",
+      "sourceCommit": "fdec00e0bf530dc6c3cc7b1dd780e95d9ae460e9",
+      "signingFingerprint": "AC0CBBE6848D6A873464AF4E57CF65933B5A7581",
+      "thirdPartyLicensesSha256": "b085c65586a953cdb4b13c6390d63ec984d66912e4b6a19e66ba3582f2ed104b"
+    },
+    "python": {
+      "version": "3.12.13",
+      "distribution": "astral-python-build-standalone-via-uv"
+    },
+    "whisperx": {
+      "version": "3.8.6",
+      "distribution": "uv-locked-pypi-pytorch-cpu",
+      "modelPolicy": "download-on-demand-to-app-data",
+      "sharedFfmpegVersion": "7.1.5"
+    }
+  },
+  "plannedSidecars": [
+    "node",
+    "ffmpeg",
+    "ffprobe",
+    "uv",
+    "python-whisperx",
+    "yt-dlp",
+    "codex-app-server"
+  ],
+  "targets": ["darwin-arm64", "darwin-x64", "win32-x64"]
+}

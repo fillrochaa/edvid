@@ -1,0 +1,45 @@
+{
+  "name": "@edvid/desktop",
+  "productName": "Edvid",
+  "version": "0.1.0",
+  "description": "Aplicativo desktop do editor de video por conversa Edvid",
+  "main": ".vite/build/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron-forge start",
+    "build:ffmpeg": "node scripts/build-ffmpeg.mjs",
+    "build:ffmpeg:torchcodec": "node scripts/fetch-ffmpeg-source.mjs 7.1.5 ffmpeg-torchcodec && node scripts/build-ffmpeg-torchcodec.mjs",
+    "fetch:ffmpeg": "node scripts/fetch-ffmpeg-source.mjs",
+    "stage:node": "node scripts/stage-node.mjs",
+    "stage:uv": "node scripts/stage-uv.mjs",
+    "stage:yt-dlp": "node scripts/stage-yt-dlp.mjs",
+    "stage:python-whisperx": "node scripts/stage-python-whisperx.mjs",
+    "prepare:forge-makers": "npx --yes --package=node@22.23.2 -c \"npm rebuild macos-alias\"",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run stage:node && npm run stage:uv && npm run stage:yt-dlp && npm run build:ffmpeg && npm run build:ffmpeg:torchcodec && npm run stage:python-whisperx && npx --yes --package=node@22.23.2 -c \"electron-forge package\"",
+    "make": "npm run stage:node && npm run stage:uv && npm run stage:yt-dlp && npm run build:ffmpeg && npm run build:ffmpeg:torchcodec && npm run stage:python-whisperx && npm run prepare:forge-makers && npx --yes --package=node@22.23.2 -c \"electron-forge make\""
+  },
+  "author": "Creator Factory",
+  "license": "MIT",
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-dmg": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-zip": "^7.11.2",
+    "@electron-forge/plugin-fuses": "^7.11.2",
+    "@electron-forge/plugin-vite": "^7.11.2",
+    "@electron/fuses": "^1.8.0",
+    "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "43.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  }
+}
