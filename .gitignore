@@ -37,9 +37,6 @@ yarn.lock
 .npm/
 .vite/
 out/
-desktop/.runtime-cache/
-desktop/artifacts/
-desktop/resources/runtimes/
 
 # Manim render artifacts (when running skills/manim-video scripts locally)
 media/

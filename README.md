@@ -11,6 +11,10 @@ horizontal** (YouTube).
 **A transcrição roda na sua máquina.** Nenhuma chave de API, nenhuma cota,
 nenhum limite de tamanho.
 
+Este repositório contém somente a skill para agentes. O aplicativo instalável
+é desenvolvido separadamente em
+[fillrochaa/edvid-desktop](https://github.com/fillrochaa/edvid-desktop).
+
 ---
 
 ## Instalação

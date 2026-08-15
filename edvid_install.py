@@ -65,6 +65,25 @@ AGENT_DIRS: list[tuple[str, Path]] = [
     ("Google Gemini", Path.home() / ".gemini" / "config" / "skills"),
 ]
 
+# Only these entries belong in an agent's skill directory. The repository may
+# also contain contributor tooling, tests or release infrastructure, none of
+# which should leak into ~/.claude/skills or ~/.codex/skills. Keeping the
+# payload explicit also makes a future accidental large commit harmless to the
+# installed copy.
+SKILL_PAYLOAD = (
+    "LICENSE",
+    "README.md",
+    "SKILL.md",
+    "agents",
+    "assets",
+    "edvid_install.py",
+    "helpers",
+    "install.md",
+    "pyproject.toml",
+    "references",
+    "uv.lock",
+)
+
 
 def log(msg: str = "") -> None:
     print(msg, flush=True)
@@ -126,6 +145,25 @@ def fetch_repo(repo: str, ref: str, into: Path, label: str) -> Path | None:
     return roots[0]
 
 
+def _validate_edvid_payload(src: Path) -> None:
+    missing = [entry for entry in SKILL_PAYLOAD if not (src / entry).exists()]
+    if missing:
+        raise FileNotFoundError(
+            "payload da skill incompleto: " + ", ".join(sorted(missing)))
+
+
+def _copy_edvid_payload(src: Path, dest: Path) -> None:
+    """Copy only the published skill payload from an edvid checkout."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for entry in SKILL_PAYLOAD:
+        source = src / entry
+        target = dest / entry
+        if source.is_dir():
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(source, target)
+
+
 def install_into(src: Path, skills_dir: Path, force: bool,
                  name: str = SKILL_NAME) -> Path | None:
     """Copy a skill into an agent's skills directory, replacing any previous
@@ -140,6 +178,10 @@ def install_into(src: Path, skills_dir: Path, force: bool,
     after that backend was deleted.
     """
     dest = skills_dir / name
+    if name == SKILL_NAME:
+        # Validate before touching an existing install. A truncated download
+        # must not destroy a working skill and only then report what was absent.
+        _validate_edvid_payload(src)
 
     # NEVER write through a symlink, with or without --force.
     #
@@ -203,8 +245,13 @@ def install_into(src: Path, skills_dir: Path, force: bool,
                     entry.unlink()
             except OSError as e:
                 log(f"    ! não consegui remover {entry.name}: {e}")
-    # dirs_exist_ok so the surviving .venv/.env keep their place.
-    shutil.copytree(src, dest, dirs_exist_ok=True)
+    # dirs_exist_ok so the surviving .venv/.env keep their place. Edvid uses an
+    # explicit allowlist; third-party skills (currently Remotion) retain their
+    # own complete directory structure.
+    if name == SKILL_NAME:
+        _copy_edvid_payload(src, dest)
+    else:
+        shutil.copytree(src, dest, dirs_exist_ok=True)
     return dest
 
 
