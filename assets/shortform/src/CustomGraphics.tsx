@@ -15,6 +15,7 @@ import {
   AbsoluteFill,
   Sequence,
   Img,
+  Video,
   OffthreadVideo,
   staticFile,
   interpolate,
@@ -142,19 +143,19 @@ const CutFlashes: React.FC<{items: CutFlash[]}> = ({items}) => {
 // ============ SPLIT SCREEN ("tela dividida") ==================================
 // Art on top, the talking head re-drawn underneath, seam at the subject's hairline.
 //
-// ONE always-mounted layer, NOT a <Sequence> per window. The obvious version wraps
-// each window in <Sequence from> + <OffthreadVideo startFrom>, and that samples
-// cut.mp4 ONE FRAME BEHIND the base video: on the first frame of the split you
-// still see the previous take, so the layout appears to change before the picture
-// does. Mounted flat with no startFrom, this layer decodes the same frame the base
-// layer does, and the window edges land exactly on the cut.
+// Each window gets a LOCAL clock so video inserts start at their own frame zero.
+// The talking head still needs the GLOBAL composition frame, so its trimBefore is
+// offset by the same window start. Keeping those clocks separate prevents the
+// classic frozen-insert bug: passing the absolute timeline frame to the insert
+// seeks beyond short media and leaves OffthreadVideo stuck on its last frame.
 const SplitFrame: React.FC<{
-  image: string;
+  src: string;
   bandH: number;
   fit: 'cover' | 'contain';
   progress: number;
   layout: 'top' | 'bottom';
-}> = ({image, bandH, fit, progress, layout}) => {
+  baseStartFrame: number;
+}> = ({src, bandH, fit, progress, layout, baseStartFrame}) => {
   // slow Ken-Burns so the band is not a dead still
   const artScale = 1 + 0.03 * progress;
   const {zoom, focusY} = LAYOUT[layout];
@@ -168,6 +169,7 @@ const SplitFrame: React.FC<{
         <OffthreadVideo
           src={staticFile('cut.mp4')}
           muted
+          trimBefore={baseStartFrame}
           style={{
             position: 'absolute',
             width: 1080 * zoom,
@@ -179,10 +181,19 @@ const SplitFrame: React.FC<{
       </div>
 
       <div style={{position: 'absolute', left: 0, top: bandTop, width: 1080, height: bandH, overflow: 'hidden'}}>
-        <Img
-          src={staticFile(image)}
-          style={{width: '100%', height: '100%', objectFit: fit, scale: String(artScale)}}
-        />
+        {/\.(mp4|mov|webm)$/i.test(src) ? (
+          <Video
+            src={staticFile(src)}
+            muted
+            loop
+            style={{width: '100%', height: '100%', objectFit: fit, scale: String(artScale)}}
+          />
+        ) : (
+          <Img
+            src={staticFile(src)}
+            style={{width: '100%', height: '100%', objectFit: fit, scale: String(artScale)}}
+          />
+        )}
         {/* Soft falloff into the seam — 'top' ONLY. There the caption sits ON the
             seam over the art and needs the darkening to stay legible. On
             'bottom' the caption sits above the seam over the video, so the same
@@ -225,13 +236,16 @@ export const SplitScreen: React.FC<{items: SplitInsert[]}> = ({items}) => {
   const a = Math.round(active.start * fps) + VIDEO_LAG;
   const b = Math.round(active.end * fps) + VIDEO_LAG;
   return (
-    <SplitFrame
-      image={active.src}
-      bandH={active.bandH ?? 750}
-      fit={active.fit ?? 'cover'}
-      layout={active.layout ?? 'top'}
-      progress={clamp((frame - a) / Math.max(1, b - a), 0, 1)}
-    />
+    <Sequence from={a} durationInFrames={Math.max(1, b - a)}>
+      <SplitFrame
+        src={active.src}
+        bandH={active.bandH ?? 750}
+        fit={active.fit ?? 'cover'}
+        layout={active.layout ?? 'top'}
+        progress={clamp((frame - a) / Math.max(1, b - a), 0, 1)}
+        baseStartFrame={a}
+      />
+    </Sequence>
   );
 };
 

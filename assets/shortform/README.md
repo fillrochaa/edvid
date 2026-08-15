@@ -115,7 +115,7 @@ Verify stills at cut boundaries (no black edges) before the full render.
 
 ## Style: "TELA DIVIDIDA" (split screen)
 
-Image on top, talking head re-drawn underneath. Set `splitInserts[]` in
+Image or video on top, talking head re-drawn underneath. Set `splitInserts[]` in
 edit-data.json; `CustomGraphics.tsx` maps over it (never hardcode the windows —
 the preview timeline only shows what is in the data).
 
@@ -130,10 +130,15 @@ Rules that make it read as a style and not an accident:
   few frames BEFORE the picture cuts — small, but it reads as a mistake. Express
   the times as `frame / fps` so `Math.round(sec * fps)` lands on that exact frame.
 - **No SFX on the transition.** A whoosh implies motion; this is a hard cut.
-- **Mount the split as ONE flat layer, never a `<Sequence>` per window with
-  `<OffthreadVideo startFrom>`.** Wrapped that way the layer samples cut.mp4 a
-  frame behind the base video, so the first frame of the split still shows the
-  PREVIOUS take.
+- **Video inserts use a LOCAL clock.** Mount the window in a `<Sequence from={a}>`
+  and let the insert's `<Video loop>` start at local frame zero. Never pass
+  the absolute composition frame as the insert's `startFrom`: on short media it
+  seeks past the end and freezes on the final frame. Video inserts loop when the
+  window is longer than the source.
+- **The talking head keeps the GLOBAL clock.** Inside that local sequence, give
+  `cut.mp4` `trimBefore={a}`. Local frame `f-a` plus the offset `a` resolves back
+  to global frame `f`, so the split does not replay the beginning or trail the
+  base picture by a frame.
 - **`VIDEO_LAG = 1`.** OffthreadVideo draws the source frame at or before
   `frame/fps`; on an exact frame boundary that resolves one frame late, so the
   decoded picture changes one composition frame after the index does. Verify per

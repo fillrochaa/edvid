@@ -376,6 +376,13 @@ every window snapped to a take cut, consecutive images contiguous, and
 `captions.windows` moves the caption to the seam while a window is up. Full rules
 in `assets/shortform/README.md`.
 
+`splitInserts[].src` accepts images and `.mp4`/`.mov`/`.webm` video. Each video
+starts at frame zero of its own window and loops when necessary. Never use the
+window's absolute timeline frame as the insert's `startFrom`; that seeks beyond
+short clips and freezes them. The re-framed `cut.mp4` is the opposite: it receives
+the window start as its offset so its local clock stays aligned with the global
+talking-head picture.
+
 | | **Tela dividida** (`top`) | **Tela dividida 2** (`bottom`) |
 |---|---|---|
 | Art | top band (750) | bottom band (750) |
