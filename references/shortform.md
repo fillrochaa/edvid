@@ -63,12 +63,12 @@ the Estilo tab at the end of Fase 1; every key maps to something here:
 An unchecked box is an explicit NO, not a silence. Copy the picks into
 `state.json` as `style`, clear `awaitingStyle`, delete `preview_style.json`.
 
-1. **Scaffold (one command, never read the TSX):**
+1. **Scaffold (one cross-platform command, never read the TSX):**
    ```bash
-   cp -R <skill>/assets/shortform/. <edit>/remotion/ && cd <edit>/remotion && npm install
+   uv run python helpers/phase2_setup.py scaffold --track shortform --edit-dir <edit>
    ```
 2. **Generate machine data into `remotion/public/`:**
-   - `cp cut.mp4 remotion/public/`
+   - `cut.mp4` is copied to `remotion/public/` by the scaffold command.
    - `transcribe.py cut.mp4 --edit-dir <edit>` → `transcripts/cut.json`
      (cut times are already on the output timeline — never map the source EDL)
    - `captions_for_remotion.py --transcript transcripts/cut.json -o public/captions.json`
@@ -81,17 +81,7 @@ An unchecked box is an explicit NO, not a silence. Copy the picks into
      build without it ("track.json doesn't exist" out of webpack, not a runtime
      warning). Write a neutral one instead: every point pinned to the camera
      target, so the follow has nothing to correct.
-     ```bash
-     python - <<'EOF'
-     import json, pathlib
-     ed = json.loads(pathlib.Path('public/edit-data.json').read_text())
-     n = round(ed['durationSec'] * ed['fps'])
-     tx, ty = ed['camera']['targetX'], ed['camera']['targetY']
-     pathlib.Path('public/track.json').write_text(json.dumps(
-         {"fps": ed['fps'], "width": ed['width'], "height": ed['height'],
-          "count": n, "points": [[tx, ty]] * n, "neutral": True}))
-     EOF
-     ```
+     `uv run python helpers/phase2_setup.py neutral-track --edit-data <edit>/remotion/public/edit-data.json -o <edit>/remotion/public/track.json`
    - `public/segments.json` — cumulative cut boundaries **measured from the
      encoded segments' frame counts, never summed from the EDL's seconds**.
      **Regenerate it after EVERY Phase-1 re-render.** A stale segments.json is
@@ -102,45 +92,16 @@ An unchecked box is an explicit NO, not a silence. Copy the picks into
      made the error look fixed. The mechanism: ffmpeg quantises each segment to
      whole frames, so EDL arithmetic drifts a fraction of a frame per cut and the
      error ACCUMULATES. Anything that must land on a cut then sits visibly early.
-     ```bash
-     python - <<'EOF'
-     import subprocess, glob, json, pathlib, sys
-     # TWO assertions, because globbing a directory is only as good as the
-     # directory. `_v.mp4` first: the J-cut writes video-only segments and a bare
-     # glob also matches butt-join leftovers. Then check the COUNT against the EDL
-     # and the SUM against cut.mp4 — a re-render with fewer ranges leaves the old
-     # higher-numbered segments behind, and that gave segments.json 9.23s for a
-     # 7.57s video. It renders clean and every overlay lands wrong.
-     segs = sorted(glob.glob("clips_graded/seg_*_v.mp4")) or sorted(glob.glob("clips_graded/seg_*.mp4"))
-     nranges = len(json.loads(pathlib.Path("edl.json").read_text())["ranges"])
-     if len(segs) != nranges:
-         sys.exit(f"{len(segs)} segments for {nranges} ranges — clips_graded is dirty")
-     cum, t = [0], 0
-     for f in segs:
-         n = int(subprocess.run(["ffprobe","-v","error","-select_streams","v:0",
-             "-count_frames","-show_entries","stream=nb_read_frames",
-             "-of","default=nw=1:nk=1",f], capture_output=True, text=True).stdout)
-         t += n; cum.append(t)
-     real = int(subprocess.run(["ffprobe","-v","error","-select_streams","v:0",
-         "-count_frames","-show_entries","stream=nb_read_frames",
-         "-of","default=nw=1:nk=1","cut.mp4"], capture_output=True, text=True).stdout)
-     if t != real:
-         sys.exit(f"segments sum {t}f != cut.mp4 {real}f — do not ship this file")
-     fps = 30  # match cut.mp4
-     json.dump({"segments": [{"start": round(cum[i]/fps,4),
-                              "dur": round((cum[i+1]-cum[i])/fps,4)}
-                             for i in range(len(cum)-1)]},
-               open("remotion/public/segments.json","w"), indent=2)
-     EOF
-     ```
+     `uv run python helpers/phase2_setup.py segments --edit-dir <edit>`
+
+     The helper keeps the same two load-bearing assertions: segment count must
+     match the EDL ranges, and encoded segment frame totals must match `cut.mp4`.
+     It reads the actual frame rate from `cut.mp4`; do not pass a guessed fps.
    - **VERIFY segments.json against the picture — do not trust it.** `scdet`
      scores every frame by how much it differs from the one before, so a hard
      cut is a spike. The spike frame in `cut.mp4` must equal
      `round(segments[i].start * fps)`:
-     ```bash
-     ffmpeg -v info -i cut.mp4 -vf "select='between(n,344,358)',setpts=N/30/TB,scdet=threshold=0" \
-       -an -f null - 2>&1 | grep scd.score
-     ```
+     `uv run python helpers/phase2_setup.py verify-scdet --video <edit>/cut.mp4 --start-frame 344 --end-frame 358`
      In the RENDER the same cut lands one frame later — that is the
      `OffthreadVideo` lag `VIDEO_LAG` exists for. Both numbers together are the
      proof: cut spike at frame F in cut.mp4, at F+1 in the render, overlay
@@ -150,10 +111,10 @@ An unchecked box is an explicit NO, not a silence. Copy the picks into
    `assets/shortform/README.md`): durationSec (exact ffprobe of cut.mp4),
    camera zooms, hook lines/logo/sign, captions config, inserts[], behind[],
    soundtrack (leave `enabled:false` until Phase 3).
-4. **Verify with stills, batched:** `npx remotion still Reels --frame=<n> f.png`
+4. **Verify with stills, batched:** `uv run python helpers/phase2_setup.py remotion --project-dir <edit>/remotion -- still Reels --frame=<n> f.png`
    for the hook still (user approval), then ONE contact sheet for spot checks:
    `contact_sheet.py <render> --times t1 t2 t3 -o sheet.png` — one image, not N.
-5. **Render:** `npx remotion render Reels out/render.mp4`, then loudnorm →
+5. **Render:** `uv run python helpers/phase2_setup.py remotion --project-dir <edit>/remotion -- render Reels out/render.mp4`, then loudnorm →
    `edit/final.mp4` (see Phase 3).
 
 Never edit `src/Main.tsx`. Bespoke graphics go in `src/CustomGraphics.tsx`
